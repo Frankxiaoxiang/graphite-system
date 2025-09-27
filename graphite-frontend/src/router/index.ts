@@ -49,13 +49,14 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      component: () => import('@/views/admin/AdminView.vue'),
+      // 核心修复：使用正确的AdminView.vue路径
+      component: () => import('@/views/experiments/admin/AdminView.vue'),
       meta: { requiresAuth: true, roles: ['admin'] }
     }
   ]
 })
 
-// 路由守卫
+// 路由守卫 - 移除调试日志
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   

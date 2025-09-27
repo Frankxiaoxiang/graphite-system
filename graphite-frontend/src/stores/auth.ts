@@ -10,7 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
 
   // 计算属性
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isEngineer = computed(() => ['admin', 'engineer'].includes(user.value?.role || ''))
 
@@ -46,8 +46,39 @@ export const useAuthStore = defineStore('auth', () => {
     if (savedToken && savedUser) {
       token.value = savedToken
       try {
-        user.value = JSON.parse(savedUser)
-      } catch {
+        const parsedUser = JSON.parse(savedUser)
+        
+        // 处理不同格式的用户数据 - 保留这个逻辑，它很有用
+        if (parsedUser.roles && Array.isArray(parsedUser.roles)) {
+          // 如果有roles数组，转换为单个role字符串
+          const roleMapping: { [key: string]: 'admin' | 'engineer' | 'user' } = {
+            'Admin': 'admin',
+            'Engineer': 'engineer', 
+            'User': 'user',
+            'admin': 'admin',
+            'engineer': 'engineer',
+            'user': 'user'
+          }
+          
+          const firstRole = parsedUser.roles[0]
+          const mappedRole = roleMapping[firstRole] || 'user'
+          
+          user.value = {
+            id: parsedUser.id,
+            username: parsedUser.username,
+            role: mappedRole,
+            real_name: parsedUser.real_name,
+            email: parsedUser.email,
+            created_at: parsedUser.created_at,
+            last_login: parsedUser.last_login
+          }
+        } else {
+          // 如果已经是正确格式
+          user.value = parsedUser
+        }
+        
+      } catch (error) {
+        console.error('解析用户数据失败:', error)
         logout()
       }
     }
