@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-container">
     <div class="header">
-      <h1>石墨实验数据管理系统</h1>
+      <h1>人工合成石墨实验数据管理系统</h1>
       <div class="user-info">
         <span>欢迎，{{ authStore.user?.real_name || authStore.user?.username }}</span>
         <el-dropdown @command="handleCommand">
@@ -20,7 +20,7 @@
         </el-dropdown>
       </div>
     </div>
-    
+
     <div class="main-content">
       <div class="stats-cards">
         <div class="stat-card">
@@ -30,7 +30,7 @@
             <p class="stat-number">{{ stats.totalExperiments }}</p>
           </div>
         </div>
-        
+
         <div class="stat-card">
           <el-icon class="stat-icon"><EditPen /></el-icon>
           <div class="stat-info">
@@ -38,7 +38,7 @@
             <p class="stat-number">{{ stats.draftExperiments }}</p>
           </div>
         </div>
-        
+
         <div class="stat-card">
           <el-icon class="stat-icon"><User /></el-icon>
           <div class="stat-info">
@@ -47,10 +47,10 @@
           </div>
         </div>
       </div>
-      
+
       <div class="menu-grid">
-        <div 
-          v-for="item in filteredMenuItems" 
+        <div
+          v-for="item in filteredMenuItems"
           :key="item.id"
           class="menu-item"
           :class="{ disabled: item.disabled }"
