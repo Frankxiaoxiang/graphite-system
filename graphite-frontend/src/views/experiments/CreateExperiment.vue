@@ -75,7 +75,7 @@
                     :options="dropdownOptions.pi_film_model"
                     @search="handleSearch('pi_film_model', $event)"
                     @add-new="handleAddNewOption('pi_film_model', $event)"
-                    :can-add="authStore.user?.role !== 'user'"
+                    :can-add="true"
                   />
                 </el-form-item>
 
@@ -96,7 +96,7 @@
                     :options="dropdownOptions.sintering_location"
                     @search="handleSearch('sintering_location', $event)"
                     @add-new="handleAddNewOption('sintering_location', $event)"
-                    :can-add="authStore.user?.role === 'admin'"
+                    :can-add="false"
                   />
                 </el-form-item>
 
@@ -150,7 +150,7 @@
                     :options="dropdownOptions.pi_manufacturer"
                     @search="handleSearch('pi_manufacturer', $event)"
                     @add-new="handleAddNewOption('pi_manufacturer', $event)"
-                    :can-add="authStore.user?.role !== 'user'"
+                    :can-add="true"
                   />
                 </el-form-item>
 

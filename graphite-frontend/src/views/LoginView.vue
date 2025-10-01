@@ -2,14 +2,14 @@
   <div class="login-container">
     <div class="login-card">
       <div class="header">
-        <h1 class="title">石墨实验管理系统</h1>
+        <h1 class="title">人工合成石墨实验管理系统</h1>
         <p class="subtitle">Graphite Experiment Management System</p>
       </div>
-      
-      <el-form 
-        ref="loginFormRef" 
-        :model="loginForm" 
-        :rules="rules" 
+
+      <el-form
+        ref="loginFormRef"
+        :model="loginForm"
+        :rules="rules"
         class="login-form"
         @submit.prevent="handleLogin"
       >
@@ -22,7 +22,7 @@
             clearable
           />
         </el-form-item>
-        
+
         <el-form-item prop="password">
           <el-input
             v-model="loginForm.password"
@@ -34,7 +34,7 @@
             @keyup.enter="handleLogin"
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button
             type="primary"
@@ -47,7 +47,7 @@
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <!-- 测试账号提示 -->
       <div class="test-info">
         <el-alert
@@ -60,7 +60,7 @@
           <p><strong>普通用户：</strong>其他用户名，密码任意</p>
         </el-alert>
       </div>
-      
+
       <div class="footer">
         <p class="version">版本 v1.0.0</p>
       </div>
@@ -101,23 +101,23 @@ const rules = {
 // 处理登录
 const handleLogin = async () => {
   if (!loginFormRef.value) return
-  
+
   try {
     // 表单验证
     const valid = await loginFormRef.value.validate()
     if (!valid) return
-    
+
     console.log('📝 准备登录:', loginForm)
-    
+
     // 调用登录API - 关键修复：传递正确的对象格式
     await authStore.login({
       username: loginForm.username,
       password: loginForm.password
     })
-    
+
     ElMessage.success('登录成功')
     router.push('/')
-    
+
   } catch (error: any) {
     console.error('❌ 登录失败:', error)
     ElMessage.error(error.message || '登录失败，请检查用户名和密码')
