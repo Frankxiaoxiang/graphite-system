@@ -1,36 +1,42 @@
 # ========================================
-# 文件名: app/routes/dropdown.py
-# 下拉选择数据管理路由
+# File: app/routes/dropdown.py
+# Simplified Dropdown Routes (Phase 4A Task 2)
+# Changes:
+# - Removed permission checks (all users can add to searchable fields)
+# - Removed approval workflow
+# - Simplified API responses
 # ========================================
 
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from app import db
 from app.models.user import User
-from app.models.dropdown import DropdownOption, DropdownField, DropdownApproval
+from app.models.dropdown import DropdownOption, DropdownField
 from app.models.system_log import SystemLog
-from app.utils.permissions import require_permission
 
 dropdown_bp = Blueprint('dropdown', __name__)
 
-# ========== 新增：支持路径参数的路由（兼容前端） ==========
+# ==========================================
+# Main Dropdown APIs
+# ==========================================
+
 @dropdown_bp.route('/options/<string:field_name>', methods=['GET', 'OPTIONS'])
 def get_dropdown_options_by_path(field_name):
-    """获取下拉选择选项 (通过路径参数)"""
-    # OPTIONS请求直接返回200（用于CORS预检）
+    """Get dropdown options by field name (supports CORS preflight)"""
+    # Handle OPTIONS preflight request
     if request.method == 'OPTIONS':
         return '', 200
     
     try:
         search = request.args.get('search', '')
         
-        # 构建查询
+        # Build query
         query = DropdownOption.query.filter_by(
             field_name=field_name, 
             is_active=True
         )
         
-        # 搜索功能
+        # Search functionality
         if search and len(search) >= 2:
             query = query.filter(
                 db.or_(
@@ -42,6 +48,7 @@ def get_dropdown_options_by_path(field_name):
         options = query.order_by(DropdownOption.sort_order).limit(20).all()
         
         result = [{
+            'id': option.id,
             'value': option.option_value,
             'label': option.option_label,
             'sort_order': option.sort_order
@@ -50,28 +57,28 @@ def get_dropdown_options_by_path(field_name):
         return jsonify(result), 200
         
     except Exception as e:
-        print(f"获取选项失败: {str(e)}")
-        return jsonify({'error': '获取选项失败', 'message': str(e)}), 500
-# ==========================================================
+        print(f"Error getting options: {str(e)}")
+        return jsonify({'error': 'Failed to get options', 'message': str(e)}), 500
+
 
 @dropdown_bp.route('/options', methods=['GET'])
 @jwt_required()
 def get_dropdown_options():
-    """获取下拉选择选项 (通过查询参数，保留旧接口)"""
+    """Get dropdown options (query parameter version, kept for compatibility)"""
     try:
         field_name = request.args.get('field_name')
         search = request.args.get('search', '')
         
         if not field_name:
-            return jsonify({'error': '字段名称不能为空'}), 400
+            return jsonify({'error': 'Field name is required'}), 400
         
-        # 构建查询
+        # Build query
         query = DropdownOption.query.filter_by(
             field_name=field_name, 
             is_active=True
         )
         
-        # 搜索功能
+        # Search functionality
         if search and len(search) >= 2:
             query = query.filter(
                 db.or_(
@@ -91,62 +98,69 @@ def get_dropdown_options():
         return jsonify({'options': result}), 200
         
     except Exception as e:
-        return jsonify({'error': '获取选项失败'}), 500
+        return jsonify({'error': 'Failed to get options'}), 500
+
 
 @dropdown_bp.route('/add', methods=['POST', 'OPTIONS'])
+@jwt_required(optional=True)  # Make JWT optional to handle OPTIONS
 def add_dropdown_option():
-    """添加新的下拉选择选项"""
-    # OPTIONS请求直接返回200（用于CORS预检）
+    """
+    Add new dropdown option (SIMPLIFIED - Phase 4A Task 2)
+    
+    Changes:
+    - Removed all permission checks
+    - Removed approval workflow
+    - All users can add to searchable fields
+    - Only check: field must be 'searchable' type
+    """
+    # Handle OPTIONS preflight request
     if request.method == 'OPTIONS':
         return '', 200
         
     try:
-        # 注意：这里暂时不使用@jwt_required装饰器，让OPTIONS请求通过
-        # 在实际请求中，我们手动检查token
-        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-        
-        try:
-            verify_jwt_in_request()
-            current_user_id = get_jwt_identity()
-        except:
-            return jsonify({'error': '未授权'}), 401
+        # Get current user from JWT
+        current_user_id = get_jwt_identity()
+        if not current_user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
         
         data = request.get_json()
         field_name = data.get('field_name')
         option_value = data.get('option_value')
         option_label = data.get('option_label')
         
+        # Validate required fields
         if not all([field_name, option_value, option_label]):
-            return jsonify({'error': '字段名称、选项值和显示文本不能为空'}), 400
+            return jsonify({'error': 'Field name, option value and label are required'}), 400
         
-        # 检查字段配置
+        # Check field configuration
         field_config = DropdownField.query.filter_by(field_name=field_name).first()
         if not field_config:
-            return jsonify({'error': '字段不存在或不支持扩展'}), 400
+            return jsonify({'error': 'Field does not exist'}), 400
         
+        # NEW: Simplified check - only verify field type is searchable
         if field_config.field_type == 'fixed':
-            return jsonify({'error': '此字段不允许添加新选项'}), 400
+            return jsonify({'error': 'Cannot add options to fixed fields'}), 400
         
-        # 简化版：所有用户都可以添加searchable字段
-        # 检查权限（保留原有逻辑，但实际上所有用户都有权限）
-        can_add = field_config.field_type == 'searchable'
+        # REMOVED: Permission checks (allow_user_add, allow_engineer_add, etc.)
+        # REMOVED: Approval workflow (require_approval)
         
-        if not can_add:
-            return jsonify({'error': '您没有权限添加此字段的选项'}), 403
-        
-        # 检查选项是否已存在
+        # Check if option already exists
         existing = DropdownOption.query.filter_by(
             field_name=field_name,
             option_value=option_value
         ).first()
         
         if existing:
-            return jsonify({'error': '选项已存在'}), 400
+            return jsonify({'error': 'Option already exists'}), 400
         
-        # 直接添加选项（无需审批）
-        # 获取下一个排序号
+        # REMOVED: Max options limit check (field_config.max_options)
+        
+        # Add option directly (no approval needed)
+        # Get next sort order
         max_sort = db.session.query(db.func.max(DropdownOption.sort_order)).filter_by(
             field_name=field_name
         ).scalar() or 0
@@ -161,20 +175,22 @@ def add_dropdown_option():
         db.session.add(option)
         db.session.commit()
         
-        # 记录操作日志
+        # Log action (optional, keep for audit trail)
         try:
             SystemLog.log_action(
                 user_id=current_user_id,
                 action='add_dropdown_option',
-                description=f'添加选项: {field_name} - {option_label}',
+                description=f'Added option: {field_name} - {option_label}',
                 ip_address=request.remote_addr
             )
         except:
-            pass  # 日志失败不影响主流程
+            pass  # Don't fail if logging fails
         
         return jsonify({
-            'message': '选项添加成功',
+            'success': True,
+            'message': 'Option added successfully',
             'option': {
+                'id': option.id,
                 'value': option.option_value,
                 'label': option.option_label
             }
@@ -182,13 +198,19 @@ def add_dropdown_option():
         
     except Exception as e:
         db.session.rollback()
-        print(f"添加选项失败: {str(e)}")
-        return jsonify({'error': '添加选项失败', 'message': str(e)}), 500
+        print(f"Error adding option: {str(e)}")
+        return jsonify({'error': 'Failed to add option', 'message': str(e)}), 500
+
 
 @dropdown_bp.route('/fields', methods=['GET'])
 @jwt_required()
 def get_dropdown_fields():
-    """获取下拉字段配置"""
+    """
+    Get dropdown field configurations (SIMPLIFIED)
+    
+    Returns only essential field information:
+    - field_name, field_label, field_type
+    """
     try:
         fields = DropdownField.query.all()
         
@@ -198,18 +220,64 @@ def get_dropdown_fields():
                 'field_name': field.field_name,
                 'field_label': field.field_label,
                 'field_type': field.field_type,
-                'allow_user_add': field.allow_user_add,
-                'allow_engineer_add': field.allow_engineer_add,
-                'allow_admin_add': field.allow_admin_add,
-                'require_approval': field.require_approval,
-                'max_options': field.max_options,
-                'description': field.description
+                # REMOVED: Permission fields (allow_user_add, require_approval, etc.)
             }
             result.append(field_data)
         
         return jsonify({'fields': result}), 200
         
     except Exception as e:
-        return jsonify({'error': '获取字段配置失败'}), 500
+        return jsonify({'error': 'Failed to get field configurations'}), 500
 
-# 其余路由保持不变...
+
+# ==========================================
+# DEPRECATED: Approval-related endpoints
+# These are kept for backward compatibility but should not be used
+# ==========================================
+
+@dropdown_bp.route('/approvals', methods=['GET'])
+@jwt_required()
+def get_dropdown_approvals():
+    """
+    DEPRECATED: Get pending approvals
+    Returns empty list as approval workflow is removed
+    """
+    return jsonify({'approvals': [], 'message': 'Approval workflow has been removed'}), 200
+
+
+@dropdown_bp.route('/approve/<int:approval_id>', methods=['POST'])
+@jwt_required()
+def approve_dropdown_option(approval_id):
+    """
+    DEPRECATED: Approve dropdown option
+    Returns error as approval workflow is removed
+    """
+    return jsonify({'error': 'Approval workflow has been removed'}), 400
+
+
+@dropdown_bp.route('/reject/<int:approval_id>', methods=['POST'])
+@jwt_required()
+def reject_dropdown_option(approval_id):
+    """
+    DEPRECATED: Reject dropdown option
+    Returns error as approval workflow is removed
+    """
+    return jsonify({'error': 'Approval workflow has been removed'}), 400
+
+
+# ==========================================
+# Health Check
+# ==========================================
+
+@dropdown_bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'ok',
+        'version': 'Phase 4A - Simplified',
+        'features': {
+            'approval_workflow': False,
+            'permission_checks': False,
+            'all_users_can_add_searchable': True
+        }
+    }), 200
