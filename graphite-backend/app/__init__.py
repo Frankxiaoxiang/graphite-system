@@ -41,8 +41,19 @@ def create_app(config_name='development'):
     jwt.init_app(app)
     ma.init_app(app)
     
-    # CORS配置
-    CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+    # ========== 修改：完整的CORS配置 ==========
+    CORS(app, 
+         resources={
+             r"/api/*": {
+                 "origins": ["http://localhost:5173", "http://localhost:3000"],
+                 "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                 "allow_headers": ["Content-Type", "Authorization"],
+                 "expose_headers": ["Content-Type", "Authorization"],
+                 "supports_credentials": True,
+                 "max_age": 3600
+             }
+         })
+    # ==========================================
     
     # 注册蓝图
     from app.routes.auth import auth_bp
