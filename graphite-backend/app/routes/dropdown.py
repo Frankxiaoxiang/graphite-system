@@ -45,7 +45,7 @@ def get_dropdown_options_by_path(field_name):
                 )
             )
         
-        options = query.order_by(DropdownOption.sort_order).limit(20).all()
+        options = query.order_by(DropdownOption.sort_order).all()
         
         result = [{
             'id': option.id,
@@ -87,7 +87,7 @@ def get_dropdown_options():
                 )
             )
         
-        options = query.order_by(DropdownOption.sort_order).limit(20).all()
+        options = query.order_by(DropdownOption.sort_order).all()
         
         result = [{
             'value': option.option_value,

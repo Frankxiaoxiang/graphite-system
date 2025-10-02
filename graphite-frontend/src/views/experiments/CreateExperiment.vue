@@ -49,11 +49,15 @@
                   />
                 </el-form-item>
 
+                <!-- 客户类型 -->
                 <el-form-item label="客户类型" prop="customer_type" required>
                   <el-select v-model="formData.customer_type" placeholder="请选择客户类型">
-                    <el-option label="国际客户" value="I" />
-                    <el-option label="国内客户" value="D" />
-                    <el-option label="内部客户" value="N" />
+                    <el-option
+                      v-for="option in dropdownOptions.customer_type"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
                   </el-select>
                 </el-form-item>
 
@@ -102,17 +106,24 @@
 
                 <el-form-item label="送烧材料类型" prop="material_type_for_firing" required>
                   <el-select v-model="formData.material_type_for_firing" placeholder="请选择送烧材料类型">
-                    <el-option label="卷材(Roll)" value="R" />
-                    <el-option label="片材(Plate)" value="P" />
-                  </el-select>
+                    <el-option
+                      v-for="option in dropdownOptions.material_type_for_firing"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
+                    </el-select>
                 </el-form-item>
 
+                <!-- 压延方式 -->
                 <el-form-item label="压延方式" prop="rolling_method" required>
                   <el-select v-model="formData.rolling_method" placeholder="请选择压延方式">
-                    <el-option label="内部平压(IF)" value="IF" />
-                    <el-option label="内部辊压(IR)" value="IR" />
-                    <el-option label="外发平压(OF)" value="OF" />
-                    <el-option label="外发辊压(OR)" value="OR" />
+                    <el-option
+                    v-for="option in dropdownOptions.rolling_method"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
                   </el-select>
                 </el-form-item>
 
@@ -924,10 +935,14 @@ const formData = reactive({
 // 下拉选项数据
 const dropdownOptions = reactive({
   pi_film_thickness: [],
+  customer_type: [],              // ✨ 新增
   customer_name: [],
   pi_film_model: [],
   sintering_location: [],
-  pi_manufacturer: []
+  material_type_for_firing: [],   // ✨ 新增
+  rolling_method: [],             // ✨ 新增
+  pi_manufacturer: [],
+  pi_thickness_detail: []         // ✨ 新增
 })
 
 // 新增选项对话框
@@ -1056,9 +1071,21 @@ function previewExperimentCode() {
 }
 
 // 加载下拉选项数据
+// 加载下拉选项数据
 async function loadDropdownOptions() {
   try {
-    const fields = ['pi_film_thickness', 'customer_name', 'pi_film_model', 'sintering_location', 'pi_manufacturer']
+    // 需要加载的所有下拉字段
+    const fields = [
+      'pi_film_thickness',      // PI膜厚度
+      'customer_type',           // 客户类型 ✨ 新增
+      'customer_name',           // 客户名称
+      'pi_film_model',          // PI膜型号
+      'sintering_location',     // 烧制地点
+      'material_type_for_firing', // 送烧材料类型 ✨ 新增
+      'rolling_method',         // 压延方式 ✨ 新增
+      'pi_manufacturer',        // PI膜厂商
+      'pi_thickness_detail'     // PI膜初始厚度 ✨ 新增
+    ]
 
     for (const field of fields) {
       const options = await dropdownApi.getOptions(field)

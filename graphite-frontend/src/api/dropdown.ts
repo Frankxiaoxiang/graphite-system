@@ -52,10 +52,10 @@ class DropdownApi {
   async getOptions(fieldName: string): Promise<DropdownOption[]> {
     try {
       const response = await request.get(`/dropdown/options/${fieldName}`)
-      return response.data || []
+      console.log(`getOptions(${fieldName}) response:`, response) // 调试日志
+      return response || []  // 直接返回 response
     } catch (error) {
       console.error('获取下拉选项失败:', error)
-      // 返回模拟数据
       return this.getMockOptions(fieldName)
     }
   }
