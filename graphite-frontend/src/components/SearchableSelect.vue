@@ -17,7 +17,7 @@
         :label="option.label"
         :value="option.value"
       />
-      
+
       <!-- 新增选项按钮 -->
       <template #footer v-if="canAdd && searchKeyword.length >= 2">
         <div class="add-option-footer">
@@ -45,7 +45,7 @@ interface Option {
 }
 
 interface Props {
-  modelValue: string | number | null
+  modelValue: string | number | null | undefined  // 添加 undefined
   placeholder?: string
   options?: Option[]
   type?: 'text' | 'number'
@@ -68,7 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const selectedValue = ref(props.modelValue)
+const selectedValue = ref(props.modelValue ?? null)  // 将undefined转为null
 const searchKeyword = ref('')
 const loading = ref(false)
 
@@ -77,7 +77,7 @@ const filteredOptions = computed(() => {
   if (!searchKeyword.value) {
     return props.options
   }
-  
+
   return props.options.filter(option =>
     option.label.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
     option.value.toString().toLowerCase().includes(searchKeyword.value.toLowerCase())
@@ -97,7 +97,7 @@ watch(selectedValue, (newValue) => {
 // 处理搜索
 async function handleSearch(keyword: string) {
   searchKeyword.value = keyword
-  
+
   if (keyword.length >= 2) {
     loading.value = true
     try {
@@ -126,12 +126,12 @@ function handleClear() {
 function handleAddNew() {
   if (searchKeyword.value.trim()) {
     let value = searchKeyword.value.trim()
-    
+
     // 如果是数字类型，转换为数字
     if (props.type === 'number' && !isNaN(Number(value))) {
       value = Number(value)
     }
-    
+
     emit('add-new', value)
     searchKeyword.value = ''
   }
