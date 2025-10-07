@@ -7,7 +7,7 @@ from app.models.experiment import (
     ExperimentCarbon, ExperimentGraphite, ExperimentRolling, ExperimentProduct
 )
 from app.models.system_log import SystemLog
-from app.utils.experiment_code import generate_experiment_code
+from app.utils.experiment_code import generate_experiment_code, validate_experiment_code_format
 from app.utils.permissions import require_permission
 from datetime import datetime
 import csv
@@ -15,6 +15,186 @@ import io
 
 experiments_bp = Blueprint('experiments', __name__)
 
+# ==========================================
+# 🆕 新增：草稿保存 API
+# ==========================================
+@experiments_bp.route('/draft', methods=['POST'])
+@jwt_required()
+def save_draft():
+    """
+    保存草稿 - 只需验证基本参数
+    前端已生成实验编码，后端负责验证和存储
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        # 1. 验证基本参数（必填字段）
+        required_basic_fields = [
+            'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
+            'experiment_date', 'sintering_location', 'material_type_for_firing',
+            'rolling_method', 'experiment_group', 'experiment_purpose'
+        ]
+        
+        missing_fields = [field for field in required_basic_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({
+                'error': '缺少必填字段',
+                'missing_fields': missing_fields
+            }), 400
+        
+        # 2. 获取前端生成的实验编码
+        experiment_code = data.get('experiment_code', '').strip()
+        
+        if not experiment_code:
+            # 如果前端没有生成编码，后端生成（备用方案）
+            experiment_code = generate_experiment_code(data)
+        
+        # 3. 验证实验编码格式
+        is_valid, error_msg = validate_experiment_code_format(experiment_code)
+        if not is_valid:
+            return jsonify({'error': f'实验编码格式错误: {error_msg}'}), 400
+        
+        # 4. 检查实验编码唯一性
+        existing = Experiment.query.filter_by(experiment_code=experiment_code).first()
+        if existing:
+            return jsonify({'error': f'实验编码 {experiment_code} 已存在，请修改参数'}), 400
+        
+        # 5. 创建实验主记录
+        experiment = Experiment(
+            experiment_code=experiment_code,
+            status='draft',
+            created_by=current_user_id,
+            notes=data.get('notes', '')
+        )
+        db.session.add(experiment)
+        db.session.flush()  # 获取实验ID
+        
+        # 6. 保存实验基础参数
+        basic = ExperimentBasic(
+            experiment_id=experiment.id,
+            pi_film_thickness=data['pi_film_thickness'],
+            customer_type=data['customer_type'],
+            customer_name=data['customer_name'],
+            pi_film_model=data['pi_film_model'],
+            experiment_date=_parse_date(data['experiment_date']),
+            sintering_location=data['sintering_location'],
+            material_type_for_firing=data['material_type_for_firing'],
+            rolling_method=data['rolling_method'],
+            experiment_group=data['experiment_group'],
+            experiment_purpose=data['experiment_purpose']
+        )
+        db.session.add(basic)
+        
+        # 7. 保存其他模块数据（如果有）
+        _save_optional_modules(experiment.id, data)
+        
+        db.session.commit()
+        
+        # 8. 记录操作日志
+        SystemLog.log_action(
+            user_id=current_user_id,
+            action='save_draft',
+            target_type='experiment',
+            target_id=experiment.id,
+            description=f'保存草稿 {experiment_code}',
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            'message': '草稿保存成功',
+            'id': experiment.id,
+            'experiment_code': experiment_code
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"保存草稿失败: {str(e)}")  # 调试用
+        return jsonify({'error': f'保存草稿失败: {str(e)}'}), 500
+
+
+# ==========================================
+# 🔄 修改：原有的创建实验 API → 正式提交 API
+# ==========================================
+@experiments_bp.route('/', methods=['POST'])
+@jwt_required()
+def create_experiment():
+    """
+    正式提交实验 - 验证所有必填字段
+    前端已生成实验编码，后端负责验证和存储
+    
+    注意：这个函数已被重构，现在需要所有40个必填字段
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        # 1. 验证所有必填字段（40个）
+        validation_result = _validate_all_required_fields(data)
+        if not validation_result['valid']:
+            return jsonify({
+                'error': '缺少必填字段',
+                'missing_fields': validation_result['missing_fields']
+            }), 400
+        
+        # 2. 获取前端生成的实验编码
+        experiment_code = data.get('experiment_code', '').strip()
+        
+        if not experiment_code:
+            # 如果前端没有生成编码，后端生成（备用方案）
+            experiment_code = generate_experiment_code(data)
+        
+        # 3. 验证实验编码格式
+        is_valid, error_msg = validate_experiment_code_format(experiment_code)
+        if not is_valid:
+            return jsonify({'error': f'实验编码格式错误: {error_msg}'}), 400
+        
+        # 4. 检查实验编码唯一性
+        existing = Experiment.query.filter_by(experiment_code=experiment_code).first()
+        if existing:
+            return jsonify({'error': f'实验编码 {experiment_code} 已存在，请修改参数'}), 400
+        
+        # 5. 创建实验主记录
+        experiment = Experiment(
+            experiment_code=experiment_code,
+            status='submitted',
+            created_by=current_user_id,
+            submitted_at=datetime.utcnow(),
+            notes=data.get('notes', '')
+        )
+        db.session.add(experiment)
+        db.session.flush()
+        
+        # 6. 保存所有模块数据
+        _save_all_modules(experiment.id, data)
+        
+        db.session.commit()
+        
+        # 7. 记录操作日志
+        SystemLog.log_action(
+            user_id=current_user_id,
+            action='submit_experiment',
+            target_type='experiment',
+            target_id=experiment.id,
+            description=f'提交实验 {experiment_code}',
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            'message': '实验提交成功',
+            'id': experiment.id,
+            'experiment_code': experiment_code
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"提交实验失败: {str(e)}")
+        return jsonify({'error': f'提交实验失败: {str(e)}'}), 500
+
+
+# ==========================================
+# ✅ 保留：原有的其他 API（不修改）
+# ==========================================
 @experiments_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_experiments():
@@ -66,78 +246,7 @@ def get_experiments():
         }), 200       
     except Exception as e:
         return jsonify({'error': '获取实验列表失败'}), 500
-@experiments_bp.route('/', methods=['POST'])
-@jwt_required()
-def create_experiment():
-    """创建新实验"""
-    try:
-        current_user_id = get_jwt_identity()
-        data = request.get_json()
-        
-        # 创建实验主记录
-        experiment = Experiment(
-            experiment_code='TEMP_CODE',  # 临时编码，后面会更新
-            status='draft',
-            created_by=current_user_id
-        )
-        db.session.add(experiment)
-        db.session.flush()  # 获取实验ID
-        
-        # 保存实验基础参数
-        if 'basic' in data:
-            basic_data = data['basic']
-            basic = ExperimentBasic(
-                experiment_id=experiment.id,
-                **basic_data
-            )
-            db.session.add(basic)
-            
-            # 生成实验编码
-            if all(key in basic_data for key in ['pi_film_thickness', 'customer_type', 'customer_name', 
-                                                 'pi_film_model', 'experiment_date', 'sintering_location',
-                                                 'material_type_for_firing', 'rolling_method', 'experiment_group']):
-                experiment_code = generate_experiment_code(basic_data)
-                experiment.experiment_code = experiment_code
-        
-        # 保存其他模块数据
-        modules = ['pi', 'loose', 'carbon', 'graphite', 'rolling', 'product']
-        model_mapping = {
-            'pi': ExperimentPi,
-            'loose': ExperimentLoose,
-            'carbon': ExperimentCarbon,
-            'graphite': ExperimentGraphite,
-            'rolling': ExperimentRolling,
-            'product': ExperimentProduct
-        }
-        
-        for module in modules:
-            if module in data:
-                model_class = model_mapping[module]
-                module_data = data[module]
-                module_data['experiment_id'] = experiment.id
-                module_instance = model_class(**module_data)
-                db.session.add(module_instance)
-        
-        db.session.commit()
-        
-        # 记录操作日志
-        SystemLog.log_action(
-            user_id=current_user_id,
-            action='create_experiment',
-            target_type='experiment',
-            target_id=experiment.id,
-            description=f'创建实验 {experiment.experiment_code}',
-            ip_address=request.remote_addr
-        )
-        
-        return jsonify({
-            'message': '实验创建成功',
-            'experiment': experiment.to_dict()
-        }), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'创建实验失败: {str(e)}'}), 500
+
 
 @experiments_bp.route('/<int:experiment_id>', methods=['GET'])
 @jwt_required()
@@ -191,6 +300,7 @@ def get_experiment(experiment_id):
         
     except Exception as e:
         return jsonify({'error': '获取实验详情失败'}), 500
+
 
 @experiments_bp.route('/<int:experiment_id>', methods=['PUT'])
 @jwt_required()
@@ -266,6 +376,7 @@ def update_experiment(experiment_id):
         db.session.rollback()
         return jsonify({'error': f'更新实验失败: {str(e)}'}), 500
 
+
 @experiments_bp.route('/<int:experiment_id>', methods=['DELETE'])
 @jwt_required()
 @require_permission('delete_all')
@@ -298,6 +409,7 @@ def delete_experiment(experiment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': '删除实验失败'}), 500
+
 
 @experiments_bp.route('/export', methods=['POST'])
 @jwt_required()
@@ -370,3 +482,296 @@ def export_experiments():
         
     except Exception as e:
         return jsonify({'error': '导出失败'}), 500
+
+
+# ==========================================
+# 🆕 新增：辅助函数
+# ==========================================
+def _validate_all_required_fields(data):
+    """验证所有必填字段（40个）"""
+    required_fields = [
+        # 实验设计参数 (10个)
+        'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
+        'experiment_date', 'sintering_location', 'material_type_for_firing',
+        'rolling_method', 'experiment_group', 'experiment_purpose',
+        
+        # PI膜参数 (4个)
+        'pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 'pi_weight',
+        
+        # 碳化参数 (7个)
+        'carbon_furnace_num', 'carbon_batch_num', 'carbon_max_temp',
+        'carbon_film_thickness', 'carbon_total_time', 'carbon_weight', 'carbon_yield_rate',
+        
+        # 石墨化参数 (9个)
+        'graphite_furnace_num', 'pressure_value', 'graphite_max_temp',
+        'foam_thickness', 'graphite_width', 'shrinkage_ratio',
+        'graphite_total_time', 'graphite_weight', 'graphite_yield_rate',
+        
+        # 产品参数 (10个)
+        'product_avg_thickness', 'product_spec', 'product_avg_density',
+        'thermal_diffusivity', 'thermal_conductivity', 'specific_heat',
+        'cohesion', 'peel_strength', 'roughness', 'appearance_description'
+    ]
+    
+    missing_fields = []
+    for field in required_fields:
+        value = data.get(field)
+        if value is None or value == '':
+            missing_fields.append(field)
+    
+    return {
+        'valid': len(missing_fields) == 0,
+        'missing_fields': missing_fields
+    }
+
+
+def _save_optional_modules(experiment_id, data):
+    """保存可选模块数据（草稿时使用）"""
+    
+    # PI膜参数
+    if any(data.get(f'pi_{key}') for key in ['manufacturer', 'thickness_detail', 'model_detail', 'width', 'batch_number', 'weight']):
+        pi = ExperimentPi(
+            experiment_id=experiment_id,
+            pi_manufacturer=data.get('pi_manufacturer'),
+            pi_thickness_detail=data.get('pi_thickness_detail'),
+            pi_model_detail=data.get('pi_model_detail'),
+            pi_width=data.get('pi_width'),
+            batch_number=data.get('batch_number'),
+            pi_weight=data.get('pi_weight')
+        )
+        db.session.add(pi)
+    
+    # 松卷参数
+    if any(data.get(key) for key in ['core_tube_type', 'loose_gap_inner', 'loose_gap_middle', 'loose_gap_outer']):
+        loose = ExperimentLoose(
+            experiment_id=experiment_id,
+            core_tube_type=data.get('core_tube_type'),
+            loose_gap_inner=data.get('loose_gap_inner'),
+            loose_gap_middle=data.get('loose_gap_middle'),
+            loose_gap_outer=data.get('loose_gap_outer')
+        )
+        db.session.add(loose)
+    
+    # 碳化参数
+    if data.get('carbon_furnace_num'):
+        carbon = ExperimentCarbon(
+            experiment_id=experiment_id,
+            carbon_furnace_number=data.get('carbon_furnace_num'),
+            carbon_furnace_batch=data.get('carbon_batch_num'),
+            boat_model=data.get('boat_model'),
+            wrap_type=data.get('wrap_type'),
+            vacuum_degree=data.get('vacuum_degree'),
+            carbon_power=data.get('carbon_power'),
+            carbon_start_time=_parse_datetime(data.get('carbon_start_time')),
+            carbon_end_time=_parse_datetime(data.get('carbon_end_time')),
+            carbon_temp1=data.get('carbon_temp1'),
+            carbon_thickness1=data.get('carbon_thickness1'),
+            carbon_temp2=data.get('carbon_temp2'),
+            carbon_thickness2=data.get('carbon_thickness2'),
+            carbon_max_temp=data.get('carbon_max_temp'),
+            carbon_film_thickness=data.get('carbon_film_thickness'),
+            carbon_total_time=data.get('carbon_total_time'),
+            carbon_after_weight=data.get('carbon_weight'),
+            carbon_yield_rate=data.get('carbon_yield_rate')
+        )
+        db.session.add(carbon)
+    
+    # 石墨化参数
+    if data.get('graphite_furnace_num'):
+        graphite = ExperimentGraphite(
+            experiment_id=experiment_id,
+            graphite_furnace_number=data.get('graphite_furnace_num'),
+            graphite_furnace_batch=data.get('graphite_batch_num'),
+            graphite_start_time=_parse_datetime(data.get('graphite_start_time')),
+            graphite_end_time=_parse_datetime(data.get('graphite_end_time')),
+            gas_pressure=data.get('pressure_value'),
+            graphite_power=data.get('graphite_power'),
+            graphite_max_temp=data.get('graphite_max_temp'),
+            foam_thickness=data.get('foam_thickness'),
+            graphite_width=data.get('graphite_width'),
+            shrinkage_ratio=data.get('shrinkage_ratio'),
+            graphite_total_time=data.get('graphite_total_time'),
+            graphite_after_weight=data.get('graphite_weight'),
+            graphite_yield_rate=data.get('graphite_yield_rate'),
+            graphite_min_thickness=data.get('graphite_min_thickness')
+        )
+        db.session.add(graphite)
+    
+    # 压延参数
+    if data.get('rolling_machine_num'):
+        rolling = ExperimentRolling(
+            experiment_id=experiment_id,
+            rolling_machine=data.get('rolling_machine_num'),
+            rolling_pressure=data.get('rolling_pressure'),
+            rolling_tension=data.get('rolling_tension'),
+            rolling_speed=data.get('rolling_speed')
+        )
+        db.session.add(rolling)
+    
+    # 产品参数
+    if data.get('product_avg_thickness'):
+        product = ExperimentProduct(
+            experiment_id=experiment_id,
+            product_code=data.get('product_code'),
+            avg_thickness=data.get('product_avg_thickness'),
+            specification=data.get('product_spec'),
+            avg_density=data.get('product_avg_density'),
+            thermal_diffusivity=data.get('thermal_diffusivity'),
+            thermal_conductivity=data.get('thermal_conductivity'),
+            specific_heat=data.get('specific_heat'),
+            cohesion=data.get('cohesion'),
+            peel_strength=data.get('peel_strength'),
+            roughness=data.get('roughness'),
+            appearance_desc=data.get('appearance_description'),
+            experiment_summary=data.get('experiment_summary'),
+            remarks=data.get('remarks')
+        )
+        db.session.add(product)
+
+
+def _save_all_modules(experiment_id, data):
+    """保存所有模块数据（正式提交时使用）"""
+    
+    # 1. 实验基础参数
+    basic = ExperimentBasic(
+        experiment_id=experiment_id,
+        pi_film_thickness=data['pi_film_thickness'],
+        customer_type=data['customer_type'],
+        customer_name=data['customer_name'],
+        pi_film_model=data['pi_film_model'],
+        experiment_date=_parse_date(data['experiment_date']),
+        sintering_location=data['sintering_location'],
+        material_type_for_firing=data['material_type_for_firing'],
+        rolling_method=data['rolling_method'],
+        experiment_group=data['experiment_group'],
+        experiment_purpose=data['experiment_purpose']
+    )
+    db.session.add(basic)
+    
+    # 2. PI膜参数
+    pi = ExperimentPi(
+        experiment_id=experiment_id,
+        pi_manufacturer=data['pi_manufacturer'],
+        pi_thickness_detail=data['pi_thickness_detail'],
+        pi_model_detail=data['pi_model_detail'],
+        pi_width=data.get('pi_width'),
+        batch_number=data.get('batch_number'),
+        pi_weight=data['pi_weight']
+    )
+    db.session.add(pi)
+    
+    # 3. 松卷参数
+    loose = ExperimentLoose(
+        experiment_id=experiment_id,
+        core_tube_type=data.get('core_tube_type'),
+        loose_gap_inner=data.get('loose_gap_inner'),
+        loose_gap_middle=data.get('loose_gap_middle'),
+        loose_gap_outer=data.get('loose_gap_outer')
+    )
+    db.session.add(loose)
+    
+    # 4. 碳化参数
+    carbon = ExperimentCarbon(
+        experiment_id=experiment_id,
+        carbon_furnace_number=data['carbon_furnace_num'],
+        carbon_furnace_batch=data['carbon_batch_num'],
+        boat_model=data.get('boat_model'),
+        wrap_type=data.get('wrap_type'),
+        vacuum_degree=data.get('vacuum_degree'),
+        carbon_power=data.get('carbon_power'),
+        carbon_start_time=_parse_datetime(data.get('carbon_start_time')),
+        carbon_end_time=_parse_datetime(data.get('carbon_end_time')),
+        carbon_temp1=data.get('carbon_temp1'),
+        carbon_thickness1=data.get('carbon_thickness1'),
+        carbon_temp2=data.get('carbon_temp2'),
+        carbon_thickness2=data.get('carbon_thickness2'),
+        carbon_max_temp=data['carbon_max_temp'],
+        carbon_film_thickness=data['carbon_film_thickness'],
+        carbon_total_time=data['carbon_total_time'],
+        carbon_after_weight=data['carbon_weight'],
+        carbon_yield_rate=data['carbon_yield_rate']
+    )
+    db.session.add(carbon)
+    
+    # 5. 石墨化参数
+    graphite = ExperimentGraphite(
+        experiment_id=experiment_id,
+        graphite_furnace_number=data['graphite_furnace_num'],
+        graphite_furnace_batch=data.get('graphite_batch_num'),
+        graphite_start_time=_parse_datetime(data.get('graphite_start_time')),
+        graphite_end_time=_parse_datetime(data.get('graphite_end_time')),
+        gas_pressure=data['pressure_value'],
+        graphite_power=data.get('graphite_power'),
+        graphite_temp1=data.get('graphite_temp1'),
+        graphite_thickness1=data.get('graphite_thickness1'),
+        graphite_temp2=data.get('graphite_temp2'),
+        graphite_thickness2=data.get('graphite_thickness2'),
+        graphite_temp3=data.get('graphite_temp3'),
+        graphite_thickness3=data.get('graphite_thickness3'),
+        graphite_temp4=data.get('graphite_temp4'),
+        graphite_thickness4=data.get('graphite_thickness4'),
+        graphite_temp5=data.get('graphite_temp5'),
+        graphite_thickness5=data.get('graphite_thickness5'),
+        graphite_temp6=data.get('graphite_temp6'),
+        graphite_thickness6=data.get('graphite_thickness6'),
+        graphite_max_temp=data['graphite_max_temp'],
+        foam_thickness=data['foam_thickness'],
+        graphite_width=data['graphite_width'],
+        shrinkage_ratio=data['shrinkage_ratio'],
+        graphite_total_time=data['graphite_total_time'],
+        graphite_after_weight=data['graphite_weight'],
+        graphite_yield_rate=data['graphite_yield_rate'],
+        graphite_min_thickness=data.get('graphite_min_thickness')
+    )
+    db.session.add(graphite)
+    
+    # 6. 压延参数
+    rolling = ExperimentRolling(
+        experiment_id=experiment_id,
+        rolling_machine=data.get('rolling_machine_num'),
+        rolling_pressure=data.get('rolling_pressure'),
+        rolling_tension=data.get('rolling_tension'),
+        rolling_speed=data.get('rolling_speed')
+    )
+    db.session.add(rolling)
+    
+    # 7. 产品参数
+    product = ExperimentProduct(
+        experiment_id=experiment_id,
+        product_code=data.get('product_code'),
+        avg_thickness=data['product_avg_thickness'],
+        specification=data['product_spec'],
+        avg_density=data['product_avg_density'],
+        thermal_diffusivity=data['thermal_diffusivity'],
+        thermal_conductivity=data['thermal_conductivity'],
+        specific_heat=data['specific_heat'],
+        cohesion=data['cohesion'],
+        peel_strength=data['peel_strength'],
+        roughness=data['roughness'],
+        appearance_desc=data['appearance_description'],
+        experiment_summary=data.get('experiment_summary'),
+        remarks=data.get('remarks')
+    )
+    db.session.add(product)
+
+
+def _parse_date(date_str):
+    """解析日期字符串"""
+    if not date_str:
+        return None
+    try:
+        if isinstance(date_str, str):
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
+        return date_str
+    except:
+        return None
+
+
+def _parse_datetime(datetime_str):
+    """解析日期时间字符串"""
+    if not datetime_str:
+        return None
+    try:
+        return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+    except:
+        return None

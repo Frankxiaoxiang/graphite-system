@@ -104,8 +104,8 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="送烧材料类型" prop="material_type_for_firing" required>
-                  <el-select v-model="formData.material_type_for_firing" placeholder="请选择送烧材料类型">
+                <el-form-item label="透烧材料类型" prop="material_type_for_firing" required>
+                  <el-select v-model="formData.material_type_for_firing" placeholder="请选择透烧材料类型">
                     <el-option
                       v-for="option in dropdownOptions.material_type_for_firing"
                       :key="option.value"
@@ -715,7 +715,7 @@
                   <el-input v-model="formData.roughness" placeholder="请输入粗糙度" />
                 </el-form-item>
 
-                <el-form-item label="外观及不良情况描述" prop="appearance_description">
+                <el-form-item label="外观及不良情况描述" prop="appearance_description" required>
                   <el-input
                     v-model="formData.appearance_description"
                     type="textarea"
@@ -935,14 +935,14 @@ const formData = reactive({
 // 下拉选项数据
 const dropdownOptions = reactive({
   pi_film_thickness: [],
-  customer_type: [],              // ✨ 新增
+  customer_type: [],
   customer_name: [],
   pi_film_model: [],
   sintering_location: [],
-  material_type_for_firing: [],   // ✨ 新增
-  rolling_method: [],             // ✨ 新增
+  material_type_for_firing: [],
+  rolling_method: [],
   pi_manufacturer: [],
-  pi_thickness_detail: []         // ✨ 新增
+  pi_thickness_detail: []
 })
 
 // 新增选项对话框
@@ -961,7 +961,7 @@ const formRules = {
   pi_film_model: [{ required: true, message: 'PI膜型号不能为空', trigger: 'change' }],
   experiment_date: [{ required: true, message: '实验申请日期不能为空', trigger: 'change' }],
   sintering_location: [{ required: true, message: '烧制地点不能为空', trigger: 'change' }],
-  material_type_for_firing: [{ required: true, message: '送烧材料类型不能为空', trigger: 'change' }],
+  material_type_for_firing: [{ required: true, message: '透烧材料类型不能为空', trigger: 'change' }],
   rolling_method: [{ required: true, message: '压延方式不能为空', trigger: 'change' }],
   experiment_group: [{ required: true, message: '实验编组不能为空', trigger: 'change' }],
   experiment_purpose: [{ required: true, message: '实验目的不能为空', trigger: 'blur' }],
@@ -998,10 +998,11 @@ const formRules = {
   cohesion: [{ required: true, message: '内聚力不能为空', trigger: 'change' }],
   peel_strength: [{ required: true, message: '剥离力不能为空', trigger: 'change' }],
   roughness: [{ required: true, message: '粗糙度不能为空', trigger: 'blur' }],
+  appearance_description: [{ required: true, message: '外观描述不能为空', trigger: 'blur' }],
   experiment_summary: [{ required: true, message: '实验总结不能为空', trigger: 'blur' }]
 }
 
-// 监听关键字段变化，自动生成实验编码
+// ✅ 保留：监听关键字段变化,自动生成实验编码
 watch([
   () => formData.pi_film_thickness,
   () => formData.customer_type,
@@ -1021,7 +1022,7 @@ onMounted(() => {
   formData.experiment_date = new Date().toISOString().split('T')[0]
 })
 
-// 生成实验编码
+// ✅ 保留：生成实验编码（不修改）
 function generateExperimentCode() {
   const {
     pi_film_thickness,
@@ -1060,7 +1061,7 @@ function generateExperimentCode() {
   }
 }
 
-// 预览实验编码
+// ✅ 保留：预览实验编码
 function previewExperimentCode() {
   generateExperimentCode()
   if (experimentCode.value) {
@@ -1070,21 +1071,19 @@ function previewExperimentCode() {
   }
 }
 
-// 加载下拉选项数据
-// 加载下拉选项数据
+// ✅ 保留：加载下拉选项数据
 async function loadDropdownOptions() {
   try {
-    // 需要加载的所有下拉字段
     const fields = [
-      'pi_film_thickness',      // PI膜厚度
-      'customer_type',           // 客户类型 ✨ 新增
-      'customer_name',           // 客户名称
-      'pi_film_model',          // PI膜型号
-      'sintering_location',     // 烧制地点
-      'material_type_for_firing', // 送烧材料类型 ✨ 新增
-      'rolling_method',         // 压延方式 ✨ 新增
-      'pi_manufacturer',        // PI膜厂商
-      'pi_thickness_detail'     // PI膜初始厚度 ✨ 新增
+      'pi_film_thickness',
+      'customer_type',
+      'customer_name',
+      'pi_film_model',
+      'sintering_location',
+      'material_type_for_firing',
+      'rolling_method',
+      'pi_manufacturer',
+      'pi_thickness_detail'
     ]
 
     for (const field of fields) {
@@ -1097,7 +1096,7 @@ async function loadDropdownOptions() {
   }
 }
 
-// 处理搜索
+// ✅ 保留：处理搜索
 async function handleSearch(fieldName: string, keyword: string) {
   if (keyword.length < 2) return
 
@@ -1109,7 +1108,7 @@ async function handleSearch(fieldName: string, keyword: string) {
   }
 }
 
-// 处理新增选项
+// ✅ 保留：处理新增选项
 function handleAddNewOption(fieldName: string, value: string) {
   const fieldLabels = {
     customer_name: '客户名称',
@@ -1123,7 +1122,7 @@ function handleAddNewOption(fieldName: string, value: string) {
   addOptionDialog.visible = true
 }
 
-// 确认新增选项
+// ✅ 保留：确认新增选项
 async function handleConfirmAddOption(data: any) {
   try {
     await dropdownApi.addOption(addOptionDialog.fieldName, data)
@@ -1141,12 +1140,130 @@ async function handleConfirmAddOption(data: any) {
   }
 }
 
-// 处理标签页切换
+// ✅ 保留：处理标签页切换
 function handleTabChange(tabName: string) {
   activeTab.value = tabName
 }
 
-// 保存草稿
+// ==========================================
+// 🆕 新增：数据准备函数
+// ==========================================
+function prepareSubmitData() {
+  return {
+    // 实验编码（前端已生成）
+    experiment_code: experimentCode.value,
+
+    // 实验设计参数（基本参数）
+    pi_film_thickness: formData.pi_film_thickness,
+    customer_type: formData.customer_type,
+    customer_name: formData.customer_name,
+    pi_film_model: formData.pi_film_model,
+    experiment_date: formData.experiment_date,
+    sintering_location: formData.sintering_location,
+    material_type_for_firing: formData.material_type_for_firing,
+    rolling_method: formData.rolling_method,
+    experiment_group: formData.experiment_group,
+    experiment_purpose: formData.experiment_purpose,
+
+    // PI膜参数
+    pi_manufacturer: formData.pi_manufacturer,
+    pi_thickness_detail: formData.pi_thickness_detail,
+    pi_model_detail: formData.pi_model_detail,
+    pi_width: formData.pi_width,
+    batch_number: formData.batch_number,
+    pi_weight: formData.pi_weight,
+
+    // 松卷参数
+    core_tube_type: formData.core_tube_type,
+    loose_gap_inner: formData.loose_gap_inner,
+    loose_gap_middle: formData.loose_gap_middle,
+    loose_gap_outer: formData.loose_gap_outer,
+
+    // 碳化参数
+    carbon_furnace_num: formData.carbon_furnace_num,
+    carbon_batch_num: formData.carbon_batch_num,
+    boat_model: formData.boat_model,
+    wrap_type: formData.wrap_type,
+    vacuum_degree: formData.vacuum_degree,
+    carbon_power: formData.carbon_power,
+    carbon_start_time: formData.carbon_start_time,
+    carbon_end_time: formData.carbon_end_time,
+    carbon_temp1: formData.carbon_temp1,
+    carbon_thickness1: formData.carbon_thickness1,
+    carbon_temp2: formData.carbon_temp2,
+    carbon_thickness2: formData.carbon_thickness2,
+    carbon_max_temp: formData.carbon_max_temp,
+    carbon_film_thickness: formData.carbon_film_thickness,
+    carbon_total_time: formData.carbon_total_time,
+    carbon_weight: formData.carbon_weight,
+    carbon_yield_rate: formData.carbon_yield_rate,
+    carbon_loading_photo: formData.carbon_loading_photo,
+    carbon_sample_photo: formData.carbon_sample_photo,
+    carbon_other_params: formData.carbon_other_params,
+
+    // 石墨化参数
+    graphite_furnace_num: formData.graphite_furnace_num,
+    graphite_batch_num: formData.graphite_batch_num,
+    graphite_start_time: formData.graphite_start_time,
+    graphite_end_time: formData.graphite_end_time,
+    pressure_value: formData.pressure_value,
+    graphite_power: formData.graphite_power,
+    graphite_temp1: formData.graphite_temp1,
+    graphite_thickness1: formData.graphite_thickness1,
+    graphite_temp2: formData.graphite_temp2,
+    graphite_thickness2: formData.graphite_thickness2,
+    graphite_temp3: formData.graphite_temp3,
+    graphite_thickness3: formData.graphite_thickness3,
+    graphite_temp4: formData.graphite_temp4,
+    graphite_thickness4: formData.graphite_thickness4,
+    graphite_temp5: formData.graphite_temp5,
+    graphite_thickness5: formData.graphite_thickness5,
+    graphite_temp6: formData.graphite_temp6,
+    graphite_thickness6: formData.graphite_thickness6,
+    graphite_max_temp: formData.graphite_max_temp,
+    foam_thickness: formData.foam_thickness,
+    graphite_width: formData.graphite_width,
+    shrinkage_ratio: formData.shrinkage_ratio,
+    graphite_total_time: formData.graphite_total_time,
+    graphite_weight: formData.graphite_weight,
+    graphite_yield_rate: formData.graphite_yield_rate,
+    graphite_min_thickness: formData.graphite_min_thickness,
+    graphite_loading_photo: formData.graphite_loading_photo,
+    graphite_sample_photo: formData.graphite_sample_photo,
+    graphite_other_params: formData.graphite_other_params,
+
+    // 压延参数
+    rolling_machine_num: formData.rolling_machine_num,
+    rolling_pressure: formData.rolling_pressure,
+    rolling_tension: formData.rolling_tension,
+    rolling_speed: formData.rolling_speed,
+
+    // 产品参数
+    product_code: formData.product_code,
+    product_avg_thickness: formData.product_avg_thickness,
+    product_spec: formData.product_spec,
+    product_avg_density: formData.product_avg_density,
+    thermal_diffusivity: formData.thermal_diffusivity,
+    thermal_conductivity: formData.thermal_conductivity,
+    specific_heat: formData.specific_heat,
+    cohesion: formData.cohesion,
+    peel_strength: formData.peel_strength,
+    roughness: formData.roughness,
+    appearance_description: formData.appearance_description,
+    experiment_summary: formData.experiment_summary,
+    remarks: formData.remarks,
+    defect_photo: formData.defect_photo,
+    sample_photo: formData.sample_photo,
+    other_files: formData.other_files,
+
+    // 备注
+    notes: formData.notes || ''
+  }
+}
+
+// ==========================================
+// 🔄 替换：保存草稿函数
+// ==========================================
 async function handleSaveDraft() {
   // 草稿只验证基本参数
   const basicFields = [
@@ -1156,9 +1273,20 @@ async function handleSaveDraft() {
   ]
 
   // 检查基本字段是否填写完整
-  const missingFields = basicFields.filter(field => !formData[field])
+  const missingFields = basicFields.filter(field => {
+    const value = formData[field]
+    return value === null || value === undefined || value === ''
+  })
+
   if (missingFields.length > 0) {
     ElMessage.warning('请先完善实验设计参数中的必填字段')
+    activeTab.value = 'basic'
+    return
+  }
+
+  // 检查实验编码是否已生成
+  if (!experimentCode.value) {
+    ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
     activeTab.value = 'basic'
     return
   }
@@ -1166,38 +1294,73 @@ async function handleSaveDraft() {
   loading.draft = true
 
   try {
-    generateExperimentCode()
-    const draftData = {
-      ...formData,
-      experiment_code: experimentCode.value,
-      status: 'draft'
+    // 准备提交数据（使用前端已生成的实验编码）
+    const draftData = prepareSubmitData()
+
+    // 调用API保存草稿
+    const response = await experimentApi.saveDraft(draftData)
+
+    ElMessage.success({
+      message: `草稿保存成功！实验编码：${response.experiment_code}`,
+      duration: 3000
+    })
+
+    // 可选：保存成功后的操作
+    console.log('草稿已保存，实验ID:', response.id)
+
+  } catch (error: any) {
+    console.error('保存草稿失败:', error)
+
+    // 处理错误信息
+    let errorMsg = '保存草稿失败'
+
+    if (error.response?.data?.error) {
+      errorMsg = error.response.data.error
+
+      // 如果有缺失字段信息
+      if (error.response.data.missing_fields) {
+        const fields = error.response.data.missing_fields.join(', ')
+        errorMsg += `\n缺少字段：${fields}`
+      }
+    } else if (error.message) {
+      errorMsg = error.message
     }
 
-    await experimentApi.saveDraft(draftData)
-    ElMessage.success('草稿保存成功')
-  } catch (error) {
-    console.error('保存草稿失败:', error)
-    ElMessage.error('保存草稿失败')
+    ElMessage.error({
+      message: errorMsg,
+      duration: 5000
+    })
   } finally {
     loading.draft = false
   }
 }
 
-// 提交实验
+// ==========================================
+// 🔄 替换：提交实验函数
+// ==========================================
 async function handleSubmit() {
   if (!formRef.value) return
 
   try {
-    // 验证所有必填字段
+    // 1. 验证所有必填字段（Element Plus 表单验证）
     await formRef.value.validate()
 
+    // 2. 检查实验编码是否已生成
+    if (!experimentCode.value) {
+      ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
+      activeTab.value = 'basic'
+      return
+    }
+
+    // 3. 确认提交对话框
     const result = await ElMessageBox.confirm(
       '确认提交实验数据吗？提交后将无法修改。',
       '确认提交',
       {
         confirmButtonText: '确认提交',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
+        distinguishCancelAndClose: true
       }
     )
 
@@ -1205,31 +1368,90 @@ async function handleSubmit() {
 
     loading.submit = true
 
-    generateExperimentCode()
-    const submitData = {
-      ...formData,
-      experiment_code: experimentCode.value,
-      status: 'submitted'
+    // 4. 准备提交数据
+    const submitData = prepareSubmitData()
+
+    // 5. 调用API提交实验
+    const response = await experimentApi.submitExperiment(submitData)
+
+    // 6. 提交成功提示
+    ElMessage.success({
+      message: `实验提交成功！实验编码：${response.experiment_code}`,
+      duration: 3000
+    })
+
+    // 7. 延迟跳转到实验数据库页面
+    setTimeout(() => {
+      router.push('/experiments/database')
+    }, 1500)
+
+  } catch (error: any) {
+    // 用户取消操作
+    if (error === 'cancel' || error === 'close') {
+      return
     }
 
-    await experimentApi.submitExperiment(submitData)
-
-    ElMessage.success('实验提交成功')
-    router.push('/experiments/database')
-
-  } catch (error) {
-    if (error === 'cancel') return
-
     console.error('提交实验失败:', error)
-    ElMessage.error('提交实验失败')
+
+    // 处理验证错误
+    if (error.response?.data?.error) {
+      let errorMsg = error.response.data.error
+
+      // 如果有缺失字段信息
+      if (error.response.data.missing_fields) {
+        const fields = error.response.data.missing_fields.join('\n- ')
+        ElMessage.error({
+          message: `${errorMsg}\n\n缺少以下必填字段：\n- ${fields}`,
+          duration: 8000,
+          showClose: true
+        })
+      } else {
+        ElMessage.error({
+          message: errorMsg,
+          duration: 5000
+        })
+      }
+    } else if (error.message) {
+      ElMessage.error({
+        message: error.message,
+        duration: 5000
+      })
+    } else {
+      ElMessage.error('提交实验失败，请稍后重试')
+    }
   } finally {
     loading.submit = false
   }
 }
 
-// 返回
+// ==========================================
+// 🔄 替换：返回函数
+// ==========================================
 function handleBack() {
-  router.go(-1)
+  // 检查是否有未保存的数据
+  const hasData = formData.pi_film_thickness ||
+                  formData.customer_name ||
+                  formData.experiment_purpose
+
+  if (hasData) {
+    ElMessageBox.confirm(
+      '确定要离开吗？未保存的数据将会丢失。',
+      '确认离开',
+      {
+        confirmButtonText: '确定离开',
+        cancelButtonText: '继续编辑',
+        type: 'warning',
+        distinguishCancelAndClose: true
+      }
+    ).then(() => {
+      router.go(-1)
+    }).catch(() => {
+      // 用户取消，不做任何操作
+    })
+  } else {
+    // 没有数据，直接返回
+    router.go(-1)
+  }
 }
 </script>
 
