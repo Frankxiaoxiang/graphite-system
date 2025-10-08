@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, make_response
+from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 from app import db
 from app.models.user import User
 from app.models.experiment import (
@@ -12,22 +12,68 @@ from app.utils.permissions import require_permission
 from datetime import datetime
 import csv
 import io
+import traceback
 
 experiments_bp = Blueprint('experiments', __name__)
 
 # ==========================================
-# 🆕 新增：草稿保存 API
+# 🆕 新增：草稿保存 API - 手动控制验证
 # ==========================================
-@experiments_bp.route('/draft', methods=['POST'])
-@jwt_required()
+@experiments_bp.route('/draft', methods=['POST', 'OPTIONS'])
 def save_draft():
     """
     保存草稿 - 只需验证基本参数
     前端已生成实验编码，后端负责验证和存储
     """
+    # 🔧 第一步：处理 OPTIONS 预检请求（必须在最前面）
+    if request.method == 'OPTIONS':
+        response = make_response('', 200)
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', 'http://localhost:5173')
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response
+    
+    # 🔧 第二步：手动验证 JWT（POST 请求）
+    print("\n" + "="*60)
+    print("📥 收到草稿保存请求")
+    print("="*60)
+    
     try:
-        current_user_id = get_jwt_identity()
+        # 检查 Authorization 头
+        auth_header = request.headers.get('Authorization')
+        print(f"🔑 Authorization 头: {auth_header[:50] if auth_header else 'None'}...")
+        
+        if not auth_header:
+            print("❌ 错误：缺少 Authorization 头")
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        if not auth_header.startswith('Bearer '):
+            print("❌ 错误：Authorization 头格式错误")
+            return jsonify({'error': '认证令牌格式错误'}), 401
+        
+        # 验证 JWT Token
+        print("🔐 开始验证 JWT Token...")
+        verify_jwt_in_request()
+        
+        # ✅ 修改：get_jwt_identity() 返回字符串，转换为整数
+        current_user_id_str = get_jwt_identity()
+        current_user_id = int(current_user_id_str)
+        
+        print(f"✅ JWT 验证成功！用户 ID: {current_user_id} (type: {type(current_user_id).__name__})")
+        
+    except Exception as e:
+        print(f"❌ JWT 验证失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'认证失败: {str(e)}'}), 401
+    
+    # 🔧 第三步：保存草稿逻辑
+    try:
         data = request.get_json()
+        print(f"\n📦 收到数据：")
+        print(f"   - 实验编码: {data.get('experiment_code', 'N/A')}")
+        print(f"   - 客户名称: {data.get('customer_name', 'N/A')}")
         
         # 1. 验证基本参数（必填字段）
         required_basic_fields = [
@@ -38,26 +84,33 @@ def save_draft():
         
         missing_fields = [field for field in required_basic_fields if not data.get(field)]
         if missing_fields:
+            print(f"❌ 缺少必填字段: {missing_fields}")
             return jsonify({
                 'error': '缺少必填字段',
                 'missing_fields': missing_fields
             }), 400
         
+        print("✅ 基本参数验证通过")
+        
         # 2. 获取前端生成的实验编码
         experiment_code = data.get('experiment_code', '').strip()
         
         if not experiment_code:
-            # 如果前端没有生成编码，后端生成（备用方案）
+            print("⚠️  前端未生成编码，后端生成中...")
             experiment_code = generate_experiment_code(data)
+        
+        print(f"🔖 实验编码: {experiment_code}")
         
         # 3. 验证实验编码格式
         is_valid, error_msg = validate_experiment_code_format(experiment_code)
         if not is_valid:
+            print(f"❌ 编码格式错误: {error_msg}")
             return jsonify({'error': f'实验编码格式错误: {error_msg}'}), 400
         
         # 4. 检查实验编码唯一性
         existing = Experiment.query.filter_by(experiment_code=experiment_code).first()
         if existing:
+            print(f"❌ 编码已存在: {experiment_code}")
             return jsonify({'error': f'实验编码 {experiment_code} 已存在，请修改参数'}), 400
         
         # 5. 创建实验主记录
@@ -68,7 +121,9 @@ def save_draft():
             notes=data.get('notes', '')
         )
         db.session.add(experiment)
-        db.session.flush()  # 获取实验ID
+        db.session.flush()
+        
+        print(f"✅ 实验主记录已创建 - ID: {experiment.id}")
         
         # 6. 保存实验基础参数
         basic = ExperimentBasic(
@@ -91,6 +146,11 @@ def save_draft():
         
         db.session.commit()
         
+        print(f"✅ 草稿保存成功！")
+        print(f"   - 实验 ID: {experiment.id}")
+        print(f"   - 实验编码: {experiment_code}")
+        print("="*60 + "\n")
+        
         # 8. 记录操作日志
         SystemLog.log_action(
             user_id=current_user_id,
@@ -109,15 +169,17 @@ def save_draft():
         
     except Exception as e:
         db.session.rollback()
-        print(f"保存草稿失败: {str(e)}")  # 调试用
+        print(f"❌ 保存草稿失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        traceback.print_exc()
+        print("="*60 + "\n")
         return jsonify({'error': f'保存草稿失败: {str(e)}'}), 500
 
 
 # ==========================================
-# 🔄 修改：原有的创建实验 API → 正式提交 API
+# 🔄 修改：原有的创建实验 API → 正式提交 API - 手动控制验证
 # ==========================================
-@experiments_bp.route('/', methods=['POST'])
-@jwt_required()
+@experiments_bp.route('/', methods=['POST', 'OPTIONS'])
 def create_experiment():
     """
     正式提交实验 - 验证所有必填字段
@@ -125,33 +187,86 @@ def create_experiment():
     
     注意：这个函数已被重构，现在需要所有40个必填字段
     """
+    # 🔧 第一步：处理 OPTIONS 预检请求（必须在最前面）
+    if request.method == 'OPTIONS':
+        response = make_response('', 200)
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', 'http://localhost:5173')
+        response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response
+    
+    # 🔧 第二步：手动验证 JWT（POST 请求）
+    print("\n" + "="*60)
+    print("📥 收到实验提交请求")
+    print("="*60)
+    
     try:
-        current_user_id = get_jwt_identity()
+        # 检查 Authorization 头
+        auth_header = request.headers.get('Authorization')
+        print(f"🔑 Authorization 头: {auth_header[:50] if auth_header else 'None'}...")
+        
+        if not auth_header:
+            print("❌ 错误：缺少 Authorization 头")
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        if not auth_header.startswith('Bearer '):
+            print("❌ 错误：Authorization 头格式错误")
+            return jsonify({'error': '认证令牌格式错误'}), 401
+        
+        # 验证 JWT Token
+        print("🔐 开始验证 JWT Token...")
+        verify_jwt_in_request()
+        
+        # ✅ 修改：转换为整数
+        current_user_id_str = get_jwt_identity()
+        current_user_id = int(current_user_id_str)
+        
+        print(f"✅ JWT 验证成功！用户 ID: {current_user_id} (type: {type(current_user_id).__name__})")
+        
+    except Exception as e:
+        print(f"❌ JWT 验证失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'认证失败: {str(e)}'}), 401
+    
+    # 🔧 第三步：提交实验逻辑
+    try:
         data = request.get_json()
+        print(f"\n📦 收到数据：")
+        print(f"   - 实验编码: {data.get('experiment_code', 'N/A')}")
+        print(f"   - 客户名称: {data.get('customer_name', 'N/A')}")
         
         # 1. 验证所有必填字段（40个）
         validation_result = _validate_all_required_fields(data)
         if not validation_result['valid']:
+            print(f"❌ 缺少必填字段: {validation_result['missing_fields']}")
             return jsonify({
                 'error': '缺少必填字段',
                 'missing_fields': validation_result['missing_fields']
             }), 400
         
+        print("✅ 所有必填字段验证通过")
+        
         # 2. 获取前端生成的实验编码
         experiment_code = data.get('experiment_code', '').strip()
         
         if not experiment_code:
-            # 如果前端没有生成编码，后端生成（备用方案）
+            print("⚠️  前端未生成编码，后端生成中...")
             experiment_code = generate_experiment_code(data)
+        
+        print(f"🔖 实验编码: {experiment_code}")
         
         # 3. 验证实验编码格式
         is_valid, error_msg = validate_experiment_code_format(experiment_code)
         if not is_valid:
+            print(f"❌ 编码格式错误: {error_msg}")
             return jsonify({'error': f'实验编码格式错误: {error_msg}'}), 400
         
         # 4. 检查实验编码唯一性
         existing = Experiment.query.filter_by(experiment_code=experiment_code).first()
         if existing:
+            print(f"❌ 编码已存在: {experiment_code}")
             return jsonify({'error': f'实验编码 {experiment_code} 已存在，请修改参数'}), 400
         
         # 5. 创建实验主记录
@@ -165,10 +280,17 @@ def create_experiment():
         db.session.add(experiment)
         db.session.flush()
         
+        print(f"✅ 实验主记录已创建 - ID: {experiment.id}")
+        
         # 6. 保存所有模块数据
         _save_all_modules(experiment.id, data)
         
         db.session.commit()
+        
+        print(f"✅ 实验提交成功！")
+        print(f"   - 实验 ID: {experiment.id}")
+        print(f"   - 实验编码: {experiment_code}")
+        print("="*60 + "\n")
         
         # 7. 记录操作日志
         SystemLog.log_action(
@@ -188,19 +310,23 @@ def create_experiment():
         
     except Exception as e:
         db.session.rollback()
-        print(f"提交实验失败: {str(e)}")
+        print(f"❌ 提交实验失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        traceback.print_exc()
+        print("="*60 + "\n")
         return jsonify({'error': f'提交实验失败: {str(e)}'}), 500
 
 
 # ==========================================
-# ✅ 保留：原有的其他 API（不修改）
+# ✅ 保留：原有的其他 API（已修改）
 # ==========================================
 @experiments_bp.route('/', methods=['GET'])
-@jwt_required()
+@require_permission('view_all')
 def get_experiments():
     """获取实验列表"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         page = request.args.get('page', 1, type=int)
@@ -249,11 +375,12 @@ def get_experiments():
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['GET'])
-@jwt_required()
+@require_permission('view_all')
 def get_experiment(experiment_id):
     """获取实验详情"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         experiment = Experiment.query.get(experiment_id)
@@ -303,11 +430,12 @@ def get_experiment(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['PUT'])
-@jwt_required()
+@require_permission('edit_all')
 def update_experiment(experiment_id):
     """更新实验数据"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         experiment = Experiment.query.get(experiment_id)
@@ -378,12 +506,12 @@ def update_experiment(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['DELETE'])
-@jwt_required()
 @require_permission('delete_all')
 def delete_experiment(experiment_id):
     """删除实验"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         
         experiment = Experiment.query.get(experiment_id)
         if not experiment:
@@ -412,11 +540,12 @@ def delete_experiment(experiment_id):
 
 
 @experiments_bp.route('/export', methods=['POST'])
-@jwt_required()
+@require_permission('export_all')
 def export_experiments():
     """导出实验数据"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         data = request.get_json()

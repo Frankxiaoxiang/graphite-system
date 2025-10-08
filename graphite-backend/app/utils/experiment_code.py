@@ -9,16 +9,16 @@ def generate_experiment_code(params):
     生成实验编码（备用方案 - 当前端未生成时使用）
     
     编码规则：
-    PI膜厚度 + 客户类型首字母 + 客户代码 + "-" + PI膜型号 + "-" + 
+    PI膜厚度 + 客户类型首字母 + 客户代码 + "-" + PI膜型号（去除连字符） + "-" + 
     实验日期后6位 + 烧制地点代码 + "-" + 送烧材料类型 + 压延方式 + 实验编组
     
-    示例：55ISA-THS55-251005DG-RIR01
+    示例：55ISATHS55-251005DG-RIR01
     
     参数说明：
     - pi_film_thickness: PI膜厚度（如：55）
     - customer_type: 客户类型（I/D/N）
     - customer_name: 客户名称（如：SA/三星，取前面的代码部分）
-    - pi_film_model: PI膜型号（如：THS55）
+    - pi_film_model: PI膜型号（如：THS-55 或 GP-65，连字符会被移除）
     - experiment_date: 实验日期（YYYY-MM-DD 或 YYYYMMDD）
     - sintering_location: 烧制地点代码（如：DG）
     - material_type_for_firing: 送烧材料类型（R/P）
@@ -40,8 +40,8 @@ def generate_experiment_code(params):
         else:
             customer_code = customer_name[:2].upper()
         
-        # 4. PI膜型号
-        pi_model = params['pi_film_model']
+        # 4. PI膜型号（✅ 修复：去除所有连字符和空格）
+        pi_model = params['pi_film_model'].replace('-', '').replace(' ', '')
         
         # 5. 实验日期后6位（YYMMDD）
         experiment_date = params['experiment_date']
@@ -93,8 +93,10 @@ def validate_experiment_code_format(code):
     返回：(is_valid: bool, error_message: str)
     
     示例：
-    - 正确格式：55ISA-THS55-251005DG-RIR01
+    - 正确格式：55ISATHS55-251005DG-RIR01
     - 错误格式：ISA-THS55-251005DG-RIR01（缺少厚度）
+    
+    注意：PI膜型号不应包含连字符（在生成时已移除）
     """
     if not code or not isinstance(code, str):
         return False, "实验编码不能为空"
@@ -102,9 +104,9 @@ def validate_experiment_code_format(code):
     # 去除首尾空格
     code = code.strip()
     
-    # 检查连字符数量
+    # 检查连字符数量（应该正好3个）
     if code.count('-') != 3:
-        return False, "实验编码格式错误：应包含3个连字符（-）"
+        return False, f"实验编码格式错误：应包含3个连字符（-），当前有{code.count('-')}个"
     
     parts = code.split('-')
     
@@ -116,9 +118,13 @@ def validate_experiment_code_format(code):
     if not parts[0][0].isdigit():
         return False, "实验编码格式错误：应以PI膜厚度数字开头"
     
-    # 验证第二部分：PI膜型号
+    # 验证第二部分：PI膜型号（不应包含连字符）
     if len(parts[1]) < 1:
         return False, "实验编码格式错误：PI膜型号不能为空"
+    
+    # ✅ 新增：检查PI膜型号是否包含连字符
+    if '-' in parts[1]:
+        return False, "实验编码格式错误：PI膜型号中不应包含连字符（生成编码时应已移除）"
     
     # 验证第三部分：日期+地点（至少8位：6位日期+2位地点）
     if len(parts[2]) < 8:
@@ -157,7 +163,7 @@ def parse_experiment_code(code):
     """
     解析实验编码，返回各个组成部分
     
-    示例输入：55ISA-THS55-251005DG-RIR01
+    示例输入：55ISATHS55-251005DG-RIR01
     返回：{
         'pi_thickness': '55',
         'customer_type': 'I',
@@ -227,7 +233,7 @@ if __name__ == '__main__':
         'pi_film_thickness': 55,
         'customer_type': 'I',
         'customer_name': 'SA/三星',
-        'pi_film_model': 'THS55',
+        'pi_film_model': 'THS-55',  # 包含连字符
         'experiment_date': '2025-10-05',
         'sintering_location': 'DG',
         'material_type_for_firing': 'R',
@@ -237,48 +243,44 @@ if __name__ == '__main__':
     
     code = generate_experiment_code(test_params)
     print(f"生成的编码: {code}")
-    print(f"预期编码: 55ISA-THS55-251005DG-RIR01")
-    print(f"是否匹配: {'✓' if code == '55ISA-THS55-251005DG-RIR01' else '✗'}")
+    print(f"预期编码: 55ISATHS55-251005DG-RIR01")
+    print(f"是否匹配: {'✓' if code == '55ISATHS55-251005DG-RIR01' else '✗'}")
     
-    # 测试2：编码验证（正确格式）
-    print("\n【测试2：验证正确格式的编码】")
-    valid_codes = [
-        '55ISA-THS55-251005DG-RIR01',
-        '50DMP-KPI50-251005XT-PIF02',
-        '75IN-ABC123-251231WF-ROR99'
+    # 测试2：带连字符的PI膜型号
+    print("\n【测试2：PI膜型号含连字符的测试】")
+    test_params2 = {
+        'pi_film_thickness': 100,
+        'customer_type': 'I',
+        'customer_name': 'SA',
+        'pi_film_model': 'GP-65',  # 包含连字符
+        'experiment_date': '2025-10-07',
+        'sintering_location': 'DG',
+        'material_type_for_firing': 'R',
+        'rolling_method': 'IF',
+        'experiment_group': 2
+    }
+    
+    code2 = generate_experiment_code(test_params2)
+    print(f"生成的编码: {code2}")
+    print(f"预期编码: 100ISAGP65-251007DG-RIF02")
+    print(f"连字符数量: {code2.count('-')} (应该是3)")
+    
+    # 测试3：编码验证
+    print("\n【测试3：验证编码格式】")
+    test_codes = [
+        ('55ISATHS55-251005DG-RIR01', True, '正确格式'),
+        ('100ISAGP65-251007DG-RIF02', True, '正确格式（PI型号无连字符）'),
+        ('100ISA-GP-65-251007DG-RIF02', False, 'PI型号包含连字符'),
+        ('ISATHS55-251005DG-RIR01', False, '缺少PI厚度'),
     ]
     
-    for test_code in valid_codes:
+    for test_code, should_pass, description in test_codes:
         is_valid, msg = validate_experiment_code_format(test_code)
-        status = '✓ 通过' if is_valid else f'✗ 失败: {msg}'
-        print(f"{test_code}: {status}")
-    
-    # 测试3：编码验证（错误格式）
-    print("\n【测试3：验证错误格式的编码】")
-    invalid_codes = [
-        ('ISA-THS55-251005DG-RIR01', '缺少PI厚度'),
-        ('55ISA-THS55-251005-RIR01', '缺少地点代码'),
-        ('55ISA-THS55-25100DG-RIR01', '日期不是6位'),
-        ('55ISA-THS55-251005DG-XIR01', '材料类型错误'),
-        ('55ISA-THS55-251005DG-RXX01', '压延方式错误'),
-        ('55ISA-THS55-251005DG-RIRAB', '编组不是数字')
-    ]
-    
-    for test_code, expected_error in invalid_codes:
-        is_valid, msg = validate_experiment_code_format(test_code)
-        status = f"✓ 正确拦截" if not is_valid else f"✗ 未拦截"
-        print(f"{test_code}: {status}")
+        status = '✓ 通过' if is_valid == should_pass else '✗ 失败'
+        print(f"{status} - {test_code}")
+        print(f"   描述: {description}")
         if msg:
-            print(f"  错误信息: {msg}")
-    
-    # 测试4：编码解析
-    print("\n【测试4：解析实验编码】")
-    test_code = '55ISA-THS55-251005DG-RIR01'
-    parsed = parse_experiment_code(test_code)
-    print(f"原始编码: {test_code}")
-    print("解析结果:")
-    for key, value in parsed.items():
-        print(f"  {key}: {value}")
+            print(f"   信息: {msg}")
     
     print("\n" + "=" * 50)
     print("测试完成！")

@@ -39,9 +39,9 @@ def login():
         user.last_login = datetime.utcnow()
         db.session.commit()
         
-        # 生成Token
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        # ✅ 修改：生成Token时将user.id转换为字符串
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         
         # 记录成功登录
         SystemLog.log_action(
@@ -66,13 +66,15 @@ def login():
 def refresh():
     """刷新访问令牌"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：get_jwt_identity()返回字符串，需要转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         if not user or not user.is_active:
             return jsonify({'error': '用户不存在或已被禁用'}), 401
         
-        access_token = create_access_token(identity=user.id)
+        # ✅ 修改：生成新token时转换为字符串
+        access_token = create_access_token(identity=str(user.id))
         
         return jsonify({
             'access_token': access_token
@@ -86,7 +88,8 @@ def refresh():
 def get_profile():
     """获取用户信息"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         if not user:
@@ -102,7 +105,8 @@ def get_profile():
 def logout():
     """用户登出"""
     try:
-        current_user_id = get_jwt_identity()
+        # ✅ 修改：转换为整数
+        current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
         # 记录登出

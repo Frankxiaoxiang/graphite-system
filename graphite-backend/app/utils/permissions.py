@@ -8,7 +8,8 @@ def require_permission(permission):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            current_user_id = get_jwt_identity()
+            # ✅ 修改：转换为整数
+            current_user_id = int(get_jwt_identity())
             user = User.query.get(current_user_id)
             
             if not user or not user.has_permission(permission):
