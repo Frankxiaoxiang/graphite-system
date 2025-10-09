@@ -1359,23 +1359,25 @@ async function handleSaveDraft() {
   }
 }
 
-// ✅ 添加：提交实验函数
+// ✅ 修复后的提交实验函数
 async function handleSubmit() {
   if (!formRef.value) return
+
+  // 🔧 先检查实验编码
+  if (!experimentCode.value) {
+    ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
+    activeTab.value = 'basic'
+    return
+  }
+
+  loading.submit = true
 
   try {
     // 1. 验证所有必填字段
     await formRef.value.validate()
 
-    // 2. 检查实验编码
-    if (!experimentCode.value) {
-      ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
-      activeTab.value = 'basic'
-      return
-    }
-
-    // 3. 确认提交对话框
-    const result = await ElMessageBox.confirm(
+    // 2. 确认提交对话框
+    await ElMessageBox.confirm(
       '确认提交实验数据吗？提交后将无法修改。',
       '确认提交',
       {
@@ -1386,43 +1388,95 @@ async function handleSubmit() {
       }
     )
 
-    if (result !== 'confirm') return
-
-    loading.submit = true
-
-    // 4. 准备提交数据
+    // 3. 准备提交数据
     const submitData = prepareSubmitData()
 
-    // 5. 调用API提交实验
+    // 4. 调用API提交实验
     const response = await experimentApi.submitExperiment(submitData)
 
-    // 6. 提交成功提示
+    // 5. 提交成功提示
     ElMessage.success({
       message: `实验提交成功！实验编码：${response.experiment_code}`,
       duration: 3000
     })
 
-    // 7. 延迟跳转到实验数据库页面
+    // 6. 延迟跳转到实验数据库页面
     setTimeout(() => {
       router.push('/experiments/database')
     }, 1500)
 
   } catch (error: any) {
-    // 用户取消操作
+    console.error('提交实验失败:', error)
+
+    // ✅ 关键修复：区分验证错误和网络错误
+
+    // 1. 用户取消操作
     if (error === 'cancel' || error === 'close') {
+      loading.submit = false
       return
     }
 
-    console.error('提交实验失败:', error)
+    // 2. Element Plus 表单验证错误（对象格式）
+    if (error && typeof error === 'object' && !error.response) {
+      // 提取验证失败的字段名
+      const fieldNames = Object.keys(error)
+      const fieldLabels: Record<string, string> = {
+        'pi_manufacturer': 'PI膜厂商',
+        'pi_thickness_detail': 'PI膜初始厚度',
+        'pi_model_detail': 'PI膜型号',
+        'pi_weight': 'PI重量',
+        'carbon_furnace_num': '碳化炉编号',
+        'carbon_batch_num': '碳化炉次',
+        'carbon_max_temp': '碳化最高温度',
+        'carbon_film_thickness': '碳化膜厚度',
+        'carbon_total_time': '碳化总时长',
+        'carbon_weight': '碳化后重量',
+        'carbon_yield_rate': '碳化成碳率',
+        'graphite_furnace_num': '石墨炉编号',
+        'pressure_value': '气压值',
+        'graphite_max_temp': '石墨化最高温度',
+        'foam_thickness': '发泡厚度',
+        'graphite_width': '石墨宽幅',
+        'shrinkage_ratio': '收缩比',
+        'graphite_total_time': '石墨化总时长',
+        'graphite_weight': '石墨化后重量',
+        'graphite_yield_rate': '石墨化成碳率',
+        'product_avg_thickness': '样品平均厚度',
+        'product_spec': '规格',
+        'product_avg_density': '平均密度',
+        'thermal_diffusivity': '热扩散系数',
+        'thermal_conductivity': '导热系数',
+        'specific_heat': '比热',
+        'cohesion': '内聚力',
+        'peel_strength': '剥离力',
+        'roughness': '粗糙度',
+        'appearance_description': '外观描述'
+      }
 
-    // 处理验证错误
+      const missingLabels = fieldNames
+        .map(field => fieldLabels[field] || field)
+        .slice(0, 10) // 最多显示10个
+
+      const moreCount = fieldNames.length > 10 ? ` 等${fieldNames.length}个` : ''
+
+      ElMessage.error({
+        message: `请完善以下必填字段：\n${missingLabels.join('、')}${moreCount}`,
+        duration: 5000,
+        showClose: true
+      })
+
+      loading.submit = false
+      return
+    }
+
+    // 3. 网络错误或后端错误
     if (error.response?.data?.error) {
       let errorMsg = error.response.data.error
 
       if (error.response.data.missing_fields) {
         const fields = error.response.data.missing_fields.join('\n- ')
         ElMessage.error({
-          message: `${errorMsg}\n\n缺少以下必填字段：\n- ${fields}`,
+          message: `${errorMsg}\n\n缺少以下字段：\n- ${fields}`,
           duration: 8000,
           showClose: true
         })
@@ -1440,7 +1494,7 @@ async function handleSubmit() {
     } else {
       ElMessage.error('提交实验失败，请稍后重试')
     }
-  } finally {
+
     loading.submit = false
   }
 }

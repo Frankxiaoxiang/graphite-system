@@ -842,22 +842,23 @@ def _save_optional_modules(experiment_id, data):
         )
         db.session.add(loose)
     
-    # 碳化参数
+# 碳化参数
     if data.get('carbon_furnace_num'):
         carbon = ExperimentCarbon(
             experiment_id=experiment_id,
             carbon_furnace_number=data.get('carbon_furnace_num'),
             carbon_furnace_batch=data.get('carbon_batch_num'),
             boat_model=data.get('boat_model'),
-            wrap_type=data.get('wrap_type'),
+            wrapping_method=data.get('wrap_type'),  # ✅ 修复：wrap_type -> wrapping_method
             vacuum_degree=data.get('vacuum_degree'),
-            carbon_power=data.get('carbon_power'),
-            carbon_start_time=_parse_datetime(data.get('carbon_start_time')),
-            carbon_end_time=_parse_datetime(data.get('carbon_end_time')),
-            carbon_temp1=data.get('carbon_temp1'),
-            carbon_thickness1=data.get('carbon_thickness1'),
-            carbon_temp2=data.get('carbon_temp2'),
-            carbon_thickness2=data.get('carbon_thickness2'),
+            power_consumption=data.get('carbon_power'),  # ✅ 修复：carbon_power -> power_consumption
+            start_time=_parse_datetime(data.get('carbon_start_time')),  # ✅ 修复：carbon_start_time -> start_time
+            end_time=_parse_datetime(data.get('carbon_end_time')),  # ✅ 修复：carbon_end_time -> end_time
+            # ❌ 删除：数据库中不存在这些字段
+            # carbon_temp1=data.get('carbon_temp1'),
+            # carbon_thickness1=data.get('carbon_thickness1'),
+            # carbon_temp2=data.get('carbon_temp2'),
+            # carbon_thickness2=data.get('carbon_thickness2'),
             carbon_max_temp=data.get('carbon_max_temp'),
             carbon_film_thickness=data.get('carbon_film_thickness'),
             carbon_total_time=data.get('carbon_total_time'),
@@ -960,21 +961,18 @@ def _save_all_modules(experiment_id, data):
     )
     db.session.add(loose)
     
-    # 4. 碳化参数
+# 4. 碳化参数
     carbon = ExperimentCarbon(
         experiment_id=experiment_id,
         carbon_furnace_number=data['carbon_furnace_num'],
         carbon_furnace_batch=data['carbon_batch_num'],
         boat_model=data.get('boat_model'),
-        wrap_type=data.get('wrap_type'),
+        wrapping_method=data.get('wrap_type'),  # ✅ 修复
         vacuum_degree=data.get('vacuum_degree'),
-        carbon_power=data.get('carbon_power'),
-        carbon_start_time=_parse_datetime(data.get('carbon_start_time')),
-        carbon_end_time=_parse_datetime(data.get('carbon_end_time')),
-        carbon_temp1=data.get('carbon_temp1'),
-        carbon_thickness1=data.get('carbon_thickness1'),
-        carbon_temp2=data.get('carbon_temp2'),
-        carbon_thickness2=data.get('carbon_thickness2'),
+        power_consumption=data.get('carbon_power'),  # ✅ 修复
+        start_time=_parse_datetime(data.get('carbon_start_time')),  # ✅ 修复
+        end_time=_parse_datetime(data.get('carbon_end_time')),  # ✅ 修复
+        # ❌ 删除不存在的字段
         carbon_max_temp=data['carbon_max_temp'],
         carbon_film_thickness=data['carbon_film_thickness'],
         carbon_total_time=data['carbon_total_time'],
