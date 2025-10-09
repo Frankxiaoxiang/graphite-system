@@ -153,39 +153,38 @@ class ExperimentApi {
    * 获取实验列表
    */
   async getExperiments(params: ExperimentSearchParams = {}): Promise<PaginatedResponse<ExperimentListItem>> {
-    const response = await request.get('/experiments', { params })
-    return response.data
+    return await request.get('/experiments', { params })
   }
 
   /**
    * 获取实验详情
    */
   async getExperiment(id: number): Promise<ExperimentData> {
-    const response = await request.get(`/experiments/${id}`)
-    return response.data
+    return await request.get(`/experiments/${id}`)
   }
 
   /**
    * 保存草稿
    */
   async saveDraft(data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
-    const response = await request.post('/experiments/draft', data)
-    return response.data
+    return await request.post('/experiments/draft', data)
   }
 
   /**
    * 更新草稿
    */
-  async updateDraft(id: number, data: ExperimentData): Promise<void> {
-    await request.put(`/experiments/${id}/draft`, data)
-  }
+/**
+ * 更新草稿 - ✅ 修复返回类型
+ */
+async updateDraft(id: number, data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
+  return await request.put(`/experiments/${id}/draft`, data)
+}
 
   /**
    * 提交实验
    */
   async submitExperiment(data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
-    const response = await request.post('/experiments', data)
-    return response.data
+    return await request.post('/experiments', data)
   }
 
   /**
@@ -206,8 +205,7 @@ class ExperimentApi {
    * 获取草稿列表
    */
   async getDrafts(params: ExperimentSearchParams = {}): Promise<PaginatedResponse<ExperimentListItem>> {
-    const response = await request.get('/experiments/drafts', { params })
-    return response.data
+    return await request.get('/experiments/drafts', { params })
   }
 
   /**
@@ -224,27 +222,24 @@ class ExperimentApi {
     rolling_method: string
     experiment_group: number
   }): Promise<{ experiment_code: string }> {
-    const response = await request.post('/experiments/generate-code', params)
-    return response.data
+    return await request.post('/experiments/generate-code', params)
   }
 
   /**
    * 验证实验编码唯一性
    */
   async validateExperimentCode(code: string): Promise<{ isValid: boolean; message?: string }> {
-    const response = await request.get(`/experiments/validate-code/${code}`)
-    return response.data
+    return await request.get(`/experiments/validate-code/${code}`)
   }
 
   /**
    * 导出实验数据
    */
   async exportExperiments(params: ExperimentSearchParams = {}): Promise<Blob> {
-    const response = await request.get('/experiments/export', {
+    return await request.get('/experiments/export', {
       params,
       responseType: 'blob'
     })
-    return response.data
   }
 
   /**
@@ -265,16 +260,14 @@ class ExperimentApi {
     thisMonth: number
     thisWeek: number
   }> {
-    const response = await request.get('/experiments/stats')
-    return response.data
+    return await request.get('/experiments/stats')
   }
 
   /**
    * 复制实验
    */
   async copyExperiment(id: number): Promise<{ id: number; experiment_code: string }> {
-    const response = await request.post(`/experiments/${id}/copy`)
-    return response.data
+    return await request.post(`/experiments/${id}/copy`)
   }
 
   /**

@@ -1,0 +1,125 @@
+进入后端文件夹
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+.\venv\Scripts\activate
+
+
+第一个 PowerShell 窗口：运行 Flask（保持开启，看日志）。
+
+cd "D:\Python project\graphite-system\graphite-backend"
+.\venv\Scripts\activate
+python app.py
+
+
+第二个 PowerShell 窗口：执行测试 API 命令，比如：
+
+Invoke-RestMethod -Uri "http://localhost:5000/api/auth/login" -Method POST -ContentType "application/json" -Body '{"username":"admin","password":"admin123"}'
+
+
+进入前端文件夹
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+执行npm run dev
+
+http://localhost:5173 
+
+这样你既能看服务端的日志，又能在另一个窗口测试 API。
+
+如何进入MySQL
+MySQL Command line
+在 PowerShell 里输入：
+mysql -u root -p
+输入密码后就会进入mysql环境
+
+情况浏览器控制台命令
+console.clear();
+
+
+Phase 4A: 下拉字段功能调整（当前任务）
+预计工作量: 2-3小时
+后端调整:
+
+ 修改 routes/dropdown.py - 删除权限检查逻辑
+ 注释/删除 routes/approval.py（如果存在）
+ 简化 GET /api/dropdown/config API
+ 更新数据库配置SQL
+
+前端调整:
+
+ 实现 FixedDropdown.vue 组件
+ 实现 SearchableDropdown.vue 组件
+ 在表单中集成新组件
+ 删除权限相关UI逻辑
+
+Phase 4B: 实验数据提交API（下一步）
+预计工作量: 1-2天
+
+ POST /api/experiments/draft - 草稿保存
+ POST /api/experiments - 正式提交
+ POST /api/experiments/generate-code - 编码生成
+ 文件上传处理逻辑
+ 数据验证规则实现
+
+Phase 4C: 数据管理API（后续）
+预计工作量: 2-3天
+
+ GET /api/experiments - 实验列表查询
+ GET /api/experiments/{id} - 实验详情
+ PUT /api/experiments/{id} - 实验更新
+ DELETE /api/experiments/{id} - 实验删除
+ POST /api/export/csv - 数据导出
+
+
+Phase 4B 的核心任务：让已有的表单能够真正保存数据
+由于前端表单 UI 已经完成，Phase 4B 的重点应该是：
+优先级 1：实验数据提交功能 ⭐⭐⭐ （最重要）
+目标：实现从前端表单到数据库的完整数据流
+需要开发的内容：
+
+后端 API 开发
+
+POST /api/experiments/draft - 草稿保存
+POST /api/experiments - 正式提交
+数据验证和错误处理
+
+
+前端API调用完善
+
+确保 handleSaveDraft() 和 handleSubmit() 能正确调用后端
+添加数据序列化逻辑（formData → API payload）
+添加成功/失败反馈
+
+数据验证
+
+后端：字段类型、必填项、数据范围
+前端：Element Plus form validation 已有，可能需要补充
+
+
+优先级 2：文件上传功能 ⭐⭐
+目标：让 9 个文件上传字段能够正常工作
+涉及的文件字段（9个）：
+
+碳化模块：carbon_loading_photo, carbon_sample_photo, carbon_other_params
+石墨化模块：graphite_loading_photo, graphite_sample_photo, graphite_other_params
+产品模块：defect_photo, sample_photo, other_files
+
+需要开发的内容：
+
+测试已有的 FileUpload.vue 组件
+测试后端 files.py 的上传 API
+集成文件上传到实验提交流程
+
+
+优先级 3：搜索下拉优化（可延后）⭐
+
+修复 CORS 问题
+实现"添加新值"功能
+测试已有的 FileUpload.vue 组件
+测试后端 files.py 的上传 API
+集成文件上传到实验提交流程
+
+
+优先级 3：搜索下拉优化（可延后）⭐
+
+修复 CORS 问题
+实现"添加新值"功能

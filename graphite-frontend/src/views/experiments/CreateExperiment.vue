@@ -825,6 +825,8 @@ const loading = reactive({
 
 // 实验编码
 const experimentCode = ref('')
+// ✅ 新增：实验 ID（用于草稿更新）
+const experimentId = ref<number | null>(null)
 
 // 表单数据
 const formData = reactive({
@@ -1022,7 +1024,7 @@ onMounted(() => {
   formData.experiment_date = new Date().toISOString().split('T')[0]
 })
 
-// ✅ 保留：生成实验编码（不修改）
+// ✅ 修复后的生成实验编码函数
 function generateExperimentCode() {
   const {
     pi_film_thickness,
@@ -1053,8 +1055,13 @@ function generateExperimentCode() {
     // 格式化编组 (如 1 -> "01")
     const groupStr = experiment_group.toString().padStart(2, '0')
 
-    // 生成编码: PI膜厚度 + 客户类型 + 客户代码 + "-" + PI膜型号 + "-" + 日期 + 烧制地点 + "-" + 材料类型 + 压延方式 + 编组
-    experimentCode.value = `${pi_film_thickness}${customer_type}${customerCode}-${pi_film_model}-${dateStr}${sintering_location}-${material_type_for_firing}${rolling_method}${groupStr}`
+    // ✅ 修复：去除PI膜型号中的所有连字符和空格
+    // 例如：TH5-100 -> TH5100, GP-65 -> GP65
+    const cleanedPiModel = pi_film_model.replace(/-/g, '').replace(/\s/g, '')
+
+    // 生成编码: PI膜厚度 + 客户类型 + 客户代码 + "-" + PI膜型号(已清理) + "-" + 日期 + 烧制地点 + "-" + 材料类型 + 压延方式 + 编组
+    // 示例：100ISA-TH5100-251008DG-RIF01 (3个连字符 ✅)
+    experimentCode.value = `${pi_film_thickness}${customer_type}${customerCode}-${cleanedPiModel}-${dateStr}${sintering_location}-${material_type_for_firing}${rolling_method}${groupStr}`
   } catch (error) {
     console.error('生成实验编码失败:', error)
     experimentCode.value = ''
@@ -1261,11 +1268,12 @@ function prepareSubmitData() {
   }
 }
 
+
 // ==========================================
-// 🔄 替换：保存草稿函数
+// 🔄 替换：保存草稿函数（支持创建和更新）
 // ==========================================
 async function handleSaveDraft() {
-  // 草稿只验证基本参数
+  // 1. 草稿只验证基本参数
   const basicFields = [
     'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
     'experiment_date', 'sintering_location', 'material_type_for_firing',
@@ -1284,7 +1292,7 @@ async function handleSaveDraft() {
     return
   }
 
-  // 检查实验编码是否已生成
+  // 2. 检查实验编码是否已生成
   if (!experimentCode.value) {
     ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
     activeTab.value = 'basic'
@@ -1296,17 +1304,33 @@ async function handleSaveDraft() {
   try {
     // 准备提交数据（使用前端已生成的实验编码）
     const draftData = prepareSubmitData()
+    let response: { id: number; experiment_code: string }
 
-    // 调用API保存草稿
-    const response = await experimentApi.saveDraft(draftData)
+    // ✅ 关键修复：判断是创建还是更新
+    if (experimentId.value) {
+      // 已有草稿 → 更新
+      console.log('📝 更新已有草稿，ID:', experimentId.value)
+      response = await experimentApi.updateDraft(experimentId.value, draftData)
 
-    ElMessage.success({
-      message: `草稿保存成功！实验编码：${response.experiment_code}`,
-      duration: 3000
-    })
+      ElMessage.success({
+        message: `草稿更新成功！实验编码：${response.experiment_code}`,
+        duration: 3000
+      })
+    } else {
+      // 首次保存 → 创建
+      console.log('📝 创建新草稿')
+      response = await experimentApi.saveDraft(draftData)
 
-    // 可选：保存成功后的操作
-    console.log('草稿已保存，实验ID:', response.id)
+      // ✅ 保存返回的实验 ID，后续保存将使用更新接口
+      experimentId.value = response.id
+
+      ElMessage.success({
+        message: `草稿保存成功！实验编码：${response.experiment_code}`,
+        duration: 3000
+      })
+    }
+
+    console.log('✅ 草稿操作成功，实验ID:', response.id, '编码:', response.experiment_code)
 
   } catch (error: any) {
     console.error('保存草稿失败:', error)
@@ -1335,17 +1359,15 @@ async function handleSaveDraft() {
   }
 }
 
-// ==========================================
-// 🔄 替换：提交实验函数
-// ==========================================
+// ✅ 添加：提交实验函数
 async function handleSubmit() {
   if (!formRef.value) return
 
   try {
-    // 1. 验证所有必填字段（Element Plus 表单验证）
+    // 1. 验证所有必填字段
     await formRef.value.validate()
 
-    // 2. 检查实验编码是否已生成
+    // 2. 检查实验编码
     if (!experimentCode.value) {
       ElMessage.error('实验编码未生成，请检查基本参数是否填写完整')
       activeTab.value = 'basic'
@@ -1397,7 +1419,6 @@ async function handleSubmit() {
     if (error.response?.data?.error) {
       let errorMsg = error.response.data.error
 
-      // 如果有缺失字段信息
       if (error.response.data.missing_fields) {
         const fields = error.response.data.missing_fields.join('\n- ')
         ElMessage.error({

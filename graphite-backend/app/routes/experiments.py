@@ -175,6 +175,167 @@ def save_draft():
         print("="*60 + "\n")
         return jsonify({'error': f'保存草稿失败: {str(e)}'}), 500
 
+# ==========================================
+# 🆕 新增：更新草稿 API
+# ==========================================
+@experiments_bp.route('/<int:experiment_id>/draft', methods=['PUT', 'OPTIONS'])
+def update_draft(experiment_id):
+    """
+    更新草稿 - 只需验证基本参数
+    """
+    # 🔧 第一步：处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        response = make_response('', 200)
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', 'http://localhost:5173')
+        response.headers['Access-Control-Allow-Methods'] = 'PUT, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response
+    
+    # 🔧 第二步：验证 JWT
+    print("\n" + "="*60)
+    print("📝 收到草稿更新请求")
+    print("="*60)
+    
+    try:
+        # 验证 JWT
+        auth_header = request.headers.get('Authorization')
+        print(f"🔑 Authorization 头: {auth_header[:50] if auth_header else 'None'}...")
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
+        current_user_id = int(get_jwt_identity())
+        print(f"✅ JWT 验证成功！用户 ID: {current_user_id}")
+        
+    except Exception as e:
+        print(f"❌ JWT 验证失败：{str(e)}")
+        return jsonify({'error': f'认证失败: {str(e)}'}), 401
+    
+    # 🔧 第三步：更新草稿逻辑
+    try:
+        data = request.get_json()
+        print(f"\n📦 收到数据：")
+        print(f"   - 实验 ID: {experiment_id}")
+        print(f"   - 实验编码: {data.get('experiment_code', 'N/A')}")
+        
+        # 1. 查找实验
+        experiment = Experiment.query.get(experiment_id)
+        if not experiment:
+            print(f"❌ 实验不存在: ID {experiment_id}")
+            return jsonify({'error': '实验不存在'}), 404
+        
+        # 2. 权限检查
+        if experiment.created_by != current_user_id:
+            print(f"❌ 无权限更新此实验")
+            return jsonify({'error': '无权限更新此实验'}), 403
+        
+        # 3. 检查实验状态（只能更新草稿）
+        if experiment.status != 'draft':
+            print(f"❌ 只能更新草稿状态的实验")
+            return jsonify({'error': '只能更新草稿状态的实验'}), 400
+        
+        # 4. 验证基本参数（10个必填字段）
+        required_basic_fields = [
+            'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
+            'experiment_date', 'sintering_location', 'material_type_for_firing',
+            'rolling_method', 'experiment_group', 'experiment_purpose'
+        ]
+        
+        missing_fields = [f for f in required_basic_fields if not data.get(f)]
+        if missing_fields:
+            print(f"❌ 缺少必填字段: {', '.join(missing_fields)}")
+            return jsonify({
+                'error': '缺少必填字段',
+                'missing_fields': missing_fields
+            }), 400
+        
+        print("✅ 基本参数验证通过")
+        
+        # 5. 验证实验编码
+        experiment_code = data.get('experiment_code')
+        if not experiment_code:
+            return jsonify({'error': '缺少实验编码'}), 400
+        
+        print(f"🔖 实验编码: {experiment_code}")
+        
+        # 验证编码格式
+        is_valid, error_msg = validate_experiment_code_format(experiment_code)
+        if not is_valid:
+            print(f"❌ 编码格式错误: {error_msg}")
+            return jsonify({'error': error_msg}), 400
+        
+        # 检查编码唯一性（排除当前实验）
+        existing = Experiment.query.filter(
+            Experiment.experiment_code == experiment_code,
+            Experiment.id != experiment_id
+        ).first()
+        
+        if existing:
+            print(f"❌ 编码已存在: {experiment_code}")
+            return jsonify({'error': f'实验编码 {experiment_code} 已存在'}), 400
+        
+        print("✅ 编码格式验证通过")
+        
+        # 6. 更新实验主记录
+        experiment.experiment_code = experiment_code
+        experiment.updated_at = datetime.utcnow()
+        
+    
+        # 7. 更新/保存各模块数据 - ✅ 先删除旧数据再保存新数据
+        print("🔄 删除旧模块数据...")
+        ExperimentBasic.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentPi.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentLoose.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentCarbon.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentGraphite.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentRolling.query.filter_by(experiment_id=experiment.id).delete()
+        ExperimentProduct.query.filter_by(experiment_id=experiment.id).delete()
+        
+        print("💾 保存新模块数据...")
+        # 保存新的基础参数（必须）
+        basic = ExperimentBasic(
+            experiment_id=experiment.id,
+            pi_film_thickness=data['pi_film_thickness'],
+            customer_type=data['customer_type'],
+            customer_name=data['customer_name'],
+            pi_film_model=data['pi_film_model'],
+            experiment_date=_parse_date(data['experiment_date']),
+            sintering_location=data['sintering_location'],
+            material_type_for_firing=data['material_type_for_firing'],
+            rolling_method=data['rolling_method'],
+            experiment_group=data['experiment_group'],
+            experiment_purpose=data['experiment_purpose']
+        )
+        db.session.add(basic)
+        
+        # 保存其他可选模块数据
+        _save_optional_modules(experiment.id, data)
+        
+        # 8. 记录操作日志
+        SystemLog.log_action(
+            user_id=current_user_id,
+            action='update_draft',
+            target_type='experiment',
+            target_id=experiment.id,
+            description=f'更新草稿 {experiment_code}',
+            ip_address=request.remote_addr
+        )
+        
+        return jsonify({
+            'message': '草稿更新成功',
+            'id': experiment.id,
+            'experiment_code': experiment_code
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 更新草稿失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        traceback.print_exc()
+        print("="*60 + "\n")
+        return jsonify({'error': f'更新草稿失败: {str(e)}'}), 500
 
 # ==========================================
 # 🔄 修改：原有的创建实验 API → 正式提交 API - 手动控制验证
@@ -884,23 +1045,32 @@ def _save_all_modules(experiment_id, data):
     db.session.add(product)
 
 
+# ==========================================
+# 辅助函数
+# ==========================================
 def _parse_date(date_str):
-    """解析日期字符串"""
+    """解析日期字符串为 date 对象"""
     if not date_str:
         return None
-    try:
-        if isinstance(date_str, str):
+    if isinstance(date_str, str):
+        try:
             return datetime.strptime(date_str, '%Y-%m-%d').date()
-        return date_str
-    except:
-        return None
-
+        except:
+            return None
+    return date_str
 
 def _parse_datetime(datetime_str):
-    """解析日期时间字符串"""
+    """解析日期时间字符串为 datetime 对象"""
     if not datetime_str:
         return None
-    try:
-        return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
-    except:
-        return None
+    if isinstance(datetime_str, str):
+        try:
+            # 尝试 ISO 格式 (2025-10-09T14:30:00)
+            return datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S')
+        except:
+            try:
+                # 尝试标准格式 (2025-10-09 14:30:00)
+                return datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
+            except:
+                return None
+    return datetime_str
