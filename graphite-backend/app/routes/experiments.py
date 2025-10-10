@@ -340,7 +340,7 @@ def update_draft(experiment_id):
 # ==========================================
 # 🔄 修改：原有的创建实验 API → 正式提交 API - 手动控制验证
 # ==========================================
-@experiments_bp.route('/', methods=['POST', 'OPTIONS'])
+@experiments_bp.route('', methods=['POST', 'OPTIONS'])
 def create_experiment():
     """
     正式提交实验 - 验证所有必填字段
@@ -481,7 +481,7 @@ def create_experiment():
 # ==========================================
 # ✅ 保留：原有的其他 API（已修改）
 # ==========================================
-@experiments_bp.route('/', methods=['GET'])
+@experiments_bp.route('', methods=['GET'])
 @require_permission('view_all')
 def get_experiments():
     """获取实验列表"""
