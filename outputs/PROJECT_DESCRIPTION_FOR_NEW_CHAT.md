@@ -314,6 +314,46 @@ current_user_id = int(get_jwt_identity())  # ✅ 转换为整数
 
 ---
 
+## 🔀 Git分支管理
+
+### 当前分支状态
+```
+main                           # 主分支（稳定版本）
+└── experiment-submission      # 开发分支 ← 当前工作分支
+```
+
+**分支信息**:
+- **分支名**: `experiment-submission`
+- **创建自**: `main`
+- **用途**: 开发核心数据闭环功能（实验提交+数据管理）
+- **状态**: 活跃开发中
+
+### 开发流程
+```bash
+# 1. 确认当前分支
+git branch
+# 应该显示: * experiment-submission
+
+# 2. 如需切换到开发分支
+git checkout experiment-submission
+
+# 3. 开发过程中定期提交
+git add .
+git commit -m "feat: 实现实验提交API"
+git push origin experiment-submission
+
+# 4. 功能完成后合并到main（稍后进行）
+git checkout main
+git merge experiment-submission
+git push origin main
+```
+
+### 重要提示
+⚠️ **所有代码修改都应该在 `experiment-submission` 分支进行**
+⚠️ **不要直接在 `main` 分支修改代码**
+
+---
+
 ## 🚀 立即行动清单
 
 ### 新聊天窗口开始时：
@@ -323,6 +363,7 @@ current_user_id = int(get_jwt_identity())  # ✅ 转换为整数
    ✅ 草稿保存功能正常
    ✅ 实验编码生成正常
    ✅ JWT认证正常
+   ✅ 已创建 experiment-submission 分支
    ⏳ 准备开发实验提交功能
    ```
 
@@ -332,9 +373,10 @@ current_user_id = int(get_jwt_identity())  # ✅ 转换为整数
    了解：10个详细步骤
    ```
 
-3. **创建工作分支** (1分钟)
+3. **确认工作分支** (1分钟)
    ```bash
-   git checkout -b feature/experiment-submission
+   git checkout experiment-submission
+   git branch  # 确认在正确的分支
    ```
 
 4. **开始开发** (现在)
