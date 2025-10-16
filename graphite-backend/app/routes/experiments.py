@@ -267,16 +267,17 @@ def update_draft(experiment_id):
             return jsonify({'error': error_msg}), 400
         
         # 检查编码唯一性（排除当前实验）
-        existing = Experiment.query.filter(
-            Experiment.experiment_code == experiment_code,
-            Experiment.id != experiment_id
+        print("\n🔍 检查实验编码唯一性...")
+        existing = Experiment.query.filter_by(experiment_code=experiment_code).filter(
+            Experiment.id != experiment_id  # ✅ 排除当前正在更新的记录
         ).first()
-        
+
         if existing:
-            print(f"❌ 编码已存在: {experiment_code}")
-            return jsonify({'error': f'实验编码 {experiment_code} 已存在'}), 400
-        
-        print("✅ 编码格式验证通过")
+            error_msg = f'实验编码 {experiment_code} 已被其他实验使用'
+            print(f"❌ {error_msg}")
+            return jsonify({'error': error_msg}), 400
+
+        print(f"✅ 实验编码唯一")
         
         # 6. 更新实验主记录
         experiment.experiment_code = experiment_code
@@ -337,6 +338,9 @@ def update_draft(experiment_id):
         print("="*60 + "\n")
         return jsonify({'error': f'更新草稿失败: {str(e)}'}), 500
 
+# ==========================================
+# 🔄 修改：原有的创建实验 API → 正式提交 API - 手动控制验证
+# ==========================================
 # ==========================================
 # 🔄 修改：原有的创建实验 API → 正式提交 API - 手动控制验证
 # ==========================================
@@ -424,36 +428,84 @@ def create_experiment():
             print(f"❌ 编码格式错误: {error_msg}")
             return jsonify({'error': f'实验编码格式错误: {error_msg}'}), 400
         
-        # 4. 检查实验编码唯一性
+        # 4. 检查实验编码是否已存在（可能是草稿）
+        print("\n🔍 检查实验编码...")
         existing = Experiment.query.filter_by(experiment_code=experiment_code).first()
+        is_updating_draft = False  # ✅ 标记是否是更新草稿
+
         if existing:
-            print(f"❌ 编码已存在: {experiment_code}")
-            return jsonify({'error': f'实验编码 {experiment_code} 已存在，请修改参数'}), 400
+            # ✅ 如果已存在且是草稿，更新为submitted状态
+            if existing.status == 'draft':
+                print(f"📝 发现草稿记录，将更新为submitted状态")
+                print(f"   - 草稿 ID: {existing.id}")
+                print(f"   - 创建者: {existing.created_by}")
         
-        # 5. 创建实验主记录
-        experiment = Experiment(
-            experiment_code=experiment_code,
-            status='submitted',
-            created_by=current_user_id,
-            submitted_at=datetime.utcnow(),
-            notes=data.get('notes', '')
-        )
-        db.session.add(experiment)
-        db.session.flush()
+                # 验证权限：只能提交自己的草稿
+                if existing.created_by != current_user_id:  # ✅ 修复：字段名
+                    error_msg = '无权限提交此实验'
+                    print(f"❌ {error_msg}")
+                    return jsonify({'error': error_msg}), 403
         
-        print(f"✅ 实验主记录已创建 - ID: {experiment.id}")
+                # 更新状态为submitted
+                existing.status = 'submitted'
+                existing.submitted_at = datetime.now()
+                experiment = existing  # 使用已有的experiment对象
+                experiment_id = existing.id
+                is_updating_draft = True  # ✅ 标记为更新草稿
         
-        # 6. 保存所有模块数据
-        _save_all_modules(experiment.id, data)
+                print(f"✅ 草稿状态已更新为submitted")
+        
+            else:
+                # 如果已存在且不是草稿，返回错误
+                error_msg = f'实验编码 {experiment_code} 已存在（状态：{existing.status}）'
+                print(f"❌ {error_msg}")
+                return jsonify({'error': error_msg}), 400
+        else:
+            # 如果不存在，标记需要创建新记录
+            print(f"✅ 实验编码不存在，将创建新记录")
+        
+        # 5. 创建或使用已有实验记录
+        if not existing:  # ✅ 只有不存在时才创建新记录
+            print("\n💾 创建实验记录...")
+            experiment = Experiment(
+                experiment_code=experiment_code,
+                created_by=current_user_id,  # ✅ 修复：字段名
+                status='submitted',
+                submitted_at=datetime.now()
+            )
+            db.session.add(experiment)
+            db.session.flush()
+            experiment_id = experiment.id
+            print(f"✅ 实验记录创建成功，ID: {experiment_id}")
+        else:
+            # 使用步骤4中已经设置的experiment对象
+            experiment_id = experiment.id
+            print(f"✅ 使用已有实验记录，ID: {experiment_id}")
+        
+        # 6. 如果是更新草稿，先删除旧的模块数据
+        if is_updating_draft:
+            print("\n🗑️ 删除旧草稿数据...")
+            ExperimentBasic.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentPi.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentLoose.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentCarbon.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentGraphite.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentRolling.query.filter_by(experiment_id=experiment_id).delete()
+            ExperimentProduct.query.filter_by(experiment_id=experiment_id).delete()
+            print("✅ 旧数据已删除")
+        
+        # 7. 保存所有模块数据
+        print("\n💾 保存所有模块数据...")
+        _save_all_modules(experiment_id, data)
         
         db.session.commit()
         
-        print(f"✅ 实验提交成功！")
+        print(f"\n✅ 实验提交成功！")
         print(f"   - 实验 ID: {experiment.id}")
         print(f"   - 实验编码: {experiment_code}")
         print("="*60 + "\n")
         
-        # 7. 记录操作日志
+        # 8. 记录操作日志
         SystemLog.log_action(
             user_id=current_user_id,
             action='submit_experiment',
@@ -471,12 +523,11 @@ def create_experiment():
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ 提交实验失败：{type(e).__name__}")
+        print(f"\n❌ 提交实验失败：{type(e).__name__}")
         print(f"   错误详情：{str(e)}")
         traceback.print_exc()
         print("="*60 + "\n")
         return jsonify({'error': f'提交实验失败: {str(e)}'}), 500
-
 
 # ==========================================
 # ✅ 保留：原有的其他 API（已修改）
