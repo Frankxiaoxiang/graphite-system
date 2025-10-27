@@ -173,12 +173,12 @@ class ExperimentApi {
   /**
    * 更新草稿
    */
-/**
- * 更新草稿 - ✅ 修复返回类型
- */
-async updateDraft(id: number, data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
-  return await request.put(`/experiments/${id}/draft`, data)
-}
+  /**
+   * 更新草稿 - ✅ 修复返回类型
+   */
+  async updateDraft(id: number, data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
+    return await request.put(`/experiments/${id}/draft`, data)
+  }
 
   /**
    * 提交实验

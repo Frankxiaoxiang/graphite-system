@@ -29,7 +29,10 @@ const router = createRouter({
         {
           path: 'drafts',
           name: 'experiment-drafts',
-          component: () => import('@/views/experiments/DraftExperiments.vue'),
+          redirect: {
+            name: 'experiment-database',
+            query: { status: 'draft' }
+          },
           meta: { requiresAuth: true }
         },
         {
@@ -49,22 +52,19 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      // 核心修复：使用正确的AdminView.vue路径
       component: () => import('@/views/experiments/admin/AdminView.vue'),
       meta: { requiresAuth: true, roles: ['admin'] }
     }
   ]
 })
 
-// 路由守卫 - 移除调试日志
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
-  
-  // 初始化认证状态
+
   if (!authStore.user) {
     authStore.initAuth()
   }
-  
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.roles && !to.meta.roles.includes(authStore.user?.role)) {

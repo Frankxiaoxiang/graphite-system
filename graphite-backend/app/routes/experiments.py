@@ -533,65 +533,153 @@ def create_experiment():
 # ✅ 保留：原有的其他 API（已修改）
 # ==========================================
 @experiments_bp.route('', methods=['GET'])
-@require_permission('view_all')
 def get_experiments():
-    """获取实验列表"""
+    """
+    获取实验列表 - 适配前端 PaginatedResponse 格式
+    
+    查询参数：
+        - page: 页码（默认1）
+        - size: 每页数量（默认20）
+        - status: 状态筛选（draft/submitted）
+        - customer_name: 客户名称搜索
+        - experiment_code: 实验编码搜索
+        - date_from: 开始日期（YYYY-MM-DD）
+        - date_to: 结束日期（YYYY-MM-DD）
+    
+    返回格式：
+        {
+            "data": [...],
+            "total": 100,
+            "page": 1,
+            "size": 20,
+            "pages": 5
+        }
+    """
     try:
-        # ✅ 修改：转换为整数
+               # ✅ 手动验证JWT
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
+        # 获取查询参数 - 适配前端参数名
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = request.args.get('size', 20, type=int)  # 前端使用 size
         status = request.args.get('status')
+        customer_name = request.args.get('customer_name')
+        experiment_code = request.args.get('experiment_code')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
         
-        # 构建查询
-        query = Experiment.query
+        print("\n" + "="*60)
+        print("📥 收到实验列表查询请求")
+        print(f"   - 用户ID: {current_user_id}, 角色: {user.role}")
+        print(f"   - 页码: {page}, 每页: {per_page}")
+        print(f"   - 筛选: status={status}, customer={customer_name}")
+        print("="*60)
+        
+        # 构建查询 - JOIN ExperimentBasic 表获取完整信息
+        query = db.session.query(
+            Experiment,
+            ExperimentBasic,
+            User.username.label('creator_name')
+        ).join(
+            ExperimentBasic,
+            Experiment.id == ExperimentBasic.experiment_id,
+            isouter=True  # 左连接，允许没有基本参数的实验
+        ).join(
+            User,
+            Experiment.created_by == User.id
+        )
         
         # 权限控制：普通用户只能看自己的实验
         if user.role == 'user':
-            query = query.filter_by(created_by=current_user_id)
+            query = query.filter(Experiment.created_by == current_user_id)
         
-        # 状态筛选
+        # 应用筛选条件
         if status:
-            query = query.filter_by(status=status)
+            query = query.filter(Experiment.status == status)
+            print(f"   - 应用状态筛选: {status}")
+        
+        if customer_name:
+            query = query.filter(ExperimentBasic.customer_name.like(f'%{customer_name}%'))
+            print(f"   - 应用客户名称搜索: {customer_name}")
+        
+        if experiment_code:
+            query = query.filter(Experiment.experiment_code.like(f'%{experiment_code}%'))
+            print(f"   - 应用实验编码搜索: {experiment_code}")
+        
+        if date_from:
+            query = query.filter(ExperimentBasic.experiment_date >= date_from)
+            print(f"   - 应用开始日期: {date_from}")
+        
+        if date_to:
+            query = query.filter(ExperimentBasic.experiment_date <= date_to)
+            print(f"   - 应用结束日期: {date_to}")
+        
+        # 排序：最新的在前
+        query = query.order_by(Experiment.created_at.desc())
         
         # 分页
-        experiments = query.order_by(Experiment.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
+        paginated = query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
         )
         
-        result = []
-        for exp in experiments.items:
-            exp_data = exp.to_dict()
-            exp_data['creator_name'] = exp.creator.real_name or exp.creator.username
-            
-            # 添加基础信息
-            if exp.basic:
-                exp_data['customer_name'] = exp.basic.customer_name
-                exp_data['experiment_date'] = exp.basic.experiment_date.isoformat() if exp.basic.experiment_date else None
-            
-            result.append(exp_data)
-        
-        return jsonify({
-            'experiments': result,
-            'pagination': {
-                'page': experiments.page,
-                'pages': experiments.pages,
-                'per_page': experiments.per_page,
-                'total': experiments.total
+        # 构建返回数据
+        result_data = []
+        for experiment, basic, creator_name in paginated.items:
+            item = {
+                'id': experiment.id,
+                'experiment_code': experiment.experiment_code,
+                'status': experiment.status,
+                'created_by': experiment.created_by,
+                'created_by_name': creator_name,
+                'created_at': experiment.created_at.strftime('%Y-%m-%d %H:%M:%S') if experiment.created_at else None,
+                'updated_at': experiment.updated_at.strftime('%Y-%m-%d %H:%M:%S') if experiment.updated_at else None,
+                'submitted_at': experiment.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if experiment.submitted_at else None,
+                
+                # 基本参数信息
+                'pi_film_thickness': basic.pi_film_thickness if basic else None,
+                'customer_name': basic.customer_name if basic else None,
+                'pi_film_model': basic.pi_film_model if basic else None,
+                'experiment_date': basic.experiment_date.strftime('%Y-%m-%d') if (basic and basic.experiment_date) else None
             }
-        }), 200       
+            result_data.append(item)
+        
+        print(f"\n✅ 查询成功: 总{paginated.total}条, 当前页{len(result_data)}条")
+        print("="*60 + "\n")
+        
+        # 返回数据 - 适配前端 PaginatedResponse 格式
+        return jsonify({
+            'data': result_data,         # 使用 data 字段
+            'total': paginated.total,
+            'page': paginated.page,
+            'size': paginated.per_page,  # 使用 size 字段
+            'pages': paginated.pages     # 使用 pages 字段
+        }), 200
+        
     except Exception as e:
-        return jsonify({'error': '获取实验列表失败'}), 500
+        print(f"\n❌ 查询失败：{type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        print("="*60 + "\n")
+        return jsonify({'error': f'获取实验列表失败: {str(e)}'}), 500
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['GET'])
-@require_permission('view_all')
 def get_experiment(experiment_id):
     """获取实验详情"""
     try:
-        # ✅ 修改：转换为整数
+        # ✅ 手动验证JWT
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
@@ -642,11 +730,15 @@ def get_experiment(experiment_id):
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['PUT'])
-@require_permission('edit_all')
 def update_experiment(experiment_id):
     """更新实验数据"""
     try:
-        # ✅ 修改：转换为整数
+        # ✅ 手动JWT验证
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
@@ -659,6 +751,8 @@ def update_experiment(experiment_id):
             return jsonify({'error': '无权修改此实验'}), 403
         
         data = request.get_json()
+        
+        print(f"\n✏️  更新实验: {experiment.experiment_code}")
         
         # 更新实验状态
         if 'status' in data:
@@ -707,6 +801,8 @@ def update_experiment(experiment_id):
             ip_address=request.remote_addr
         )
         
+        print(f"✅ 更新成功: {experiment.experiment_code}\n")
+        
         return jsonify({
             'message': '实验更新成功',
             'experiment': experiment.to_dict()
@@ -714,22 +810,47 @@ def update_experiment(experiment_id):
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ 更新失败: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': f'更新实验失败: {str(e)}'}), 500
 
 
 @experiments_bp.route('/<int:experiment_id>', methods=['DELETE'])
-@require_permission('delete_all')
 def delete_experiment(experiment_id):
     """删除实验"""
     try:
-        # ✅ 修改：转换为整数
+        # ✅ 手动JWT验证
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
         current_user_id = int(get_jwt_identity())
+        user = User.query.get(current_user_id)
         
         experiment = Experiment.query.get(experiment_id)
         if not experiment:
             return jsonify({'error': '实验不存在'}), 404
         
+        # ✅ 权限检查：只能删除自己的草稿
+        if user.role == 'user' and experiment.created_by != current_user_id:
+            return jsonify({'error': '无权删除此实验'}), 403
+        
+        if experiment.status != 'draft':
+            return jsonify({'error': '只能删除草稿状态的实验'}), 400
+        
         experiment_code = experiment.experiment_code
+        
+        print(f"\n🗑️  删除实验: {experiment_code}")
+        
+        # 删除关联数据（级联删除）
+        ExperimentBasic.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentPi.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentLoose.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentCarbon.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentGraphite.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentRolling.query.filter_by(experiment_id=experiment_id).delete()
+        ExperimentProduct.query.filter_by(experiment_id=experiment_id).delete()
         
         # 记录操作日志
         SystemLog.log_action(
@@ -741,22 +862,31 @@ def delete_experiment(experiment_id):
             ip_address=request.remote_addr
         )
         
+        # 删除主记录
         db.session.delete(experiment)
         db.session.commit()
+        
+        print(f"✅ 删除成功: {experiment_code}\n")
         
         return jsonify({'message': '实验删除成功'}), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': '删除实验失败'}), 500
+        print(f"❌ 删除失败: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'删除实验失败: {str(e)}'}), 500
 
 
 @experiments_bp.route('/export', methods=['POST'])
-@require_permission('export_all')
 def export_experiments():
     """导出实验数据"""
     try:
-        # ✅ 修改：转换为整数
+        # ✅ 手动JWT验证
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return jsonify({'error': '缺少认证令牌'}), 401
+        
+        verify_jwt_in_request()
         current_user_id = int(get_jwt_identity())
         user = User.query.get(current_user_id)
         
@@ -765,6 +895,8 @@ def export_experiments():
         
         if not experiment_ids:
             return jsonify({'error': '请选择要导出的实验'}), 400
+        
+        print(f"\n📤 导出实验: {len(experiment_ids)}条")
         
         # 构建查询
         query = Experiment.query.filter(Experiment.id.in_(experiment_ids))
@@ -816,12 +948,16 @@ def export_experiments():
             ip_address=request.remote_addr
         )
         
+        print(f"✅ 导出成功: {len(experiments)}条\n")
+        
         return jsonify({
             'csv_content': csv_content,
             'filename': f'experiments_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
         }), 200
         
     except Exception as e:
+        print(f"❌ 导出失败: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': '导出失败'}), 500
 
 
