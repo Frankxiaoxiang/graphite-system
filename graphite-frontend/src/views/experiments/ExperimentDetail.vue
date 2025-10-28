@@ -370,18 +370,25 @@ async function loadExperimentDetail() {
 
     experimentId.value = id
     const response = await experimentApi.getExperimentDetail(id)
+    // ✅ 修复:后端直接返回实验对象
+    const exp = response.data || response
+    console.log('📦 解析后的实验数据:', exp)
+
+    if (!exp) {
+      throw new Error('实验数据为空')
+    }
 
     // 填充实验基本信息
-    Object.assign(experimentData, response.data.experiment)
+    Object.assign(experimentData, exp)
 
-    // 填充各模块数据
-    Object.assign(basicData, response.data.basic || {})
-    Object.assign(piData, response.data.pi || {})
-    Object.assign(looseData, response.data.loose || {})
-    Object.assign(carbonData, response.data.carbon || {})
-    Object.assign(graphiteData, response.data.graphite || {})
-    Object.assign(rollingData, response.data.rolling || {})
-    Object.assign(productData, response.data.product || {})
+    // 填充各模块数据（如果后端返回了分模块的数据结构）
+    Object.assign(basicData, exp.basic || exp)
+    Object.assign(piData, exp.pi || {})
+    Object.assign(looseData, exp.loose || {})
+    Object.assign(carbonData, exp.carbon || {})
+    Object.assign(graphiteData, exp.graphite || {})
+    Object.assign(rollingData, exp.rolling || {})
+    Object.assign(productData, exp.product || {})
 
   } catch (error: any) {
     console.error('加载实验详情失败:', error)

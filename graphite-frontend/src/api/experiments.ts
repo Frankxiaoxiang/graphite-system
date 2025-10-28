@@ -167,7 +167,7 @@ class ExperimentApi {
    * 获取实验详情（别名方法）
    */
   async getExperimentDetail(id: number): Promise<ExperimentData> {
-    return await request.get(`/experiments/${id}`)
+    return this.getExperiment(id)
   }
 
   /**
