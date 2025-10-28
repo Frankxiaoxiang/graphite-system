@@ -46,6 +46,18 @@ const router = createRouter({
           name: 'experiment-analysis',
           component: () => import('@/views/experiments/ExperimentAnalysis.vue'),
           meta: { requiresAuth: true, roles: ['admin', 'engineer'] }
+        },
+        {
+          path: 'edit/:id',
+          name: 'experiment-edit',
+          component: () => import('@/views/experiments/CreateExperiment.vue'),
+          meta: { title: '编辑实验', requiresAuth: true }
+        },
+        {
+          path: ':id',
+          name: 'experiment-detail',
+          component: () => import('@/views/experiments/ExperimentDetail.vue'),
+          meta: { title: '实验详情', requiresAuth: true }
         }
       ]
     },

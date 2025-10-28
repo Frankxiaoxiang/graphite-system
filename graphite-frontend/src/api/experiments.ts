@@ -164,6 +164,13 @@ class ExperimentApi {
   }
 
   /**
+   * 获取实验详情（别名方法）
+   */
+  async getExperimentDetail(id: number): Promise<ExperimentData> {
+    return await request.get(`/experiments/${id}`)
+  }
+
+  /**
    * 保存草稿
    */
   async saveDraft(data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
@@ -172,9 +179,6 @@ class ExperimentApi {
 
   /**
    * 更新草稿
-   */
-  /**
-   * 更新草稿 - ✅ 修复返回类型
    */
   async updateDraft(id: number, data: ExperimentData): Promise<{ id: number; experiment_code: string }> {
     return await request.put(`/experiments/${id}/draft`, data)
@@ -233,11 +237,10 @@ class ExperimentApi {
   }
 
   /**
-   * 导出实验数据
+   * 导出实验数据为CSV
    */
   async exportExperiments(params: ExperimentSearchParams = {}): Promise<Blob> {
-    return await request.get('/experiments/export', {
-      params,
+    return await request.post('/experiments/export', params, {
       responseType: 'blob'
     })
   }

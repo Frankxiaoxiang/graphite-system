@@ -253,8 +253,8 @@ function goToCreate() {
 }
 
 function viewDetail(id: number) {
-  ElMessage.info('详情页面开发中，敬请期待...')
   console.log('查看详情 ID:', id)
+  router.push(`/experiments/${id}`)  // ← 添加路由跳转
 }
 
 function canDelete(row: any): boolean {
