@@ -720,8 +720,87 @@ def get_experiment(experiment_id):
                 'pi_weight': float(experiment.pi.pi_weight) if experiment.pi.pi_weight else None
             }
         
-        # 添加其他模块数据（碳化、石墨化、压延、成品）
-        # 这里可以继续添加其他模块的数据转换
+# 3. 松卷参数
+        if experiment.loose:
+            experiment_data['loose'] = {
+                'core_tube_type': experiment.loose.core_tube_type,
+                'loose_gap_inner': float(experiment.loose.loose_gap_inner) if experiment.loose.loose_gap_inner else None,
+                'loose_gap_middle': float(experiment.loose.loose_gap_middle) if experiment.loose.loose_gap_middle else None,
+                'loose_gap_outer': float(experiment.loose.loose_gap_outer) if experiment.loose.loose_gap_outer else None
+            }
+        
+        # 4. 碳化参数
+        if experiment.carbon:
+            experiment_data['carbon'] = {
+                'carbon_furnace_number': experiment.carbon.carbon_furnace_number,
+                'carbon_furnace_batch': experiment.carbon.carbon_furnace_batch,
+                'boat_model': experiment.carbon.boat_model,
+                'wrapping_method': experiment.carbon.wrapping_method,
+                'vacuum_degree': float(experiment.carbon.vacuum_degree) if experiment.carbon.vacuum_degree else None,
+                'power_consumption': float(experiment.carbon.power_consumption) if experiment.carbon.power_consumption else None,
+                'start_time': experiment.carbon.start_time.isoformat() if experiment.carbon.start_time else None,
+                'end_time': experiment.carbon.end_time.isoformat() if experiment.carbon.end_time else None,
+                'carbon_max_temp': float(experiment.carbon.carbon_max_temp) if experiment.carbon.carbon_max_temp else None,
+                'carbon_total_time': experiment.carbon.carbon_total_time,
+                'carbon_film_thickness': float(experiment.carbon.carbon_film_thickness) if experiment.carbon.carbon_film_thickness else None,
+                'carbon_after_weight': float(experiment.carbon.carbon_after_weight) if experiment.carbon.carbon_after_weight else None,
+                'carbon_yield_rate': float(experiment.carbon.carbon_yield_rate) if experiment.carbon.carbon_yield_rate else None,
+                'carbon_loading_photo': experiment.carbon.carbon_loading_photo,
+                'carbon_sample_photo': experiment.carbon.carbon_sample_photo,
+                'carbon_other_params': experiment.carbon.carbon_other_params
+            }
+        
+        # 5. 石墨化参数
+        if experiment.graphite:
+            experiment_data['graphite'] = {
+                'graphite_furnace_number': experiment.graphite.graphite_furnace_number,
+                'graphite_furnace_batch': experiment.graphite.graphite_furnace_batch,
+                'graphite_start_time': experiment.graphite.graphite_start_time.isoformat() if experiment.graphite.graphite_start_time else None,
+                'graphite_end_time': experiment.graphite.graphite_end_time.isoformat() if experiment.graphite.graphite_end_time else None,
+                'gas_pressure': float(experiment.graphite.gas_pressure) if experiment.graphite.gas_pressure else None,
+                'graphite_power': float(experiment.graphite.graphite_power) if experiment.graphite.graphite_power else None,
+                'foam_thickness': float(experiment.graphite.foam_thickness) if experiment.graphite.foam_thickness else None,
+                'graphite_max_temp': float(experiment.graphite.graphite_max_temp) if experiment.graphite.graphite_max_temp else None,
+                'graphite_width': float(experiment.graphite.graphite_width) if experiment.graphite.graphite_width else None,
+                'shrinkage_ratio': float(experiment.graphite.shrinkage_ratio) if experiment.graphite.shrinkage_ratio else None,
+                'graphite_total_time': experiment.graphite.graphite_total_time,
+                'graphite_after_weight': float(experiment.graphite.graphite_after_weight) if experiment.graphite.graphite_after_weight else None,
+                'graphite_yield_rate': float(experiment.graphite.graphite_yield_rate) if experiment.graphite.graphite_yield_rate else None,
+                'graphite_min_thickness': float(experiment.graphite.graphite_min_thickness) if experiment.graphite.graphite_min_thickness else None,
+                'graphite_loading_photo': experiment.graphite.graphite_loading_photo,
+                'graphite_sample_photo': experiment.graphite.graphite_sample_photo,
+                'graphite_other_params': experiment.graphite.graphite_other_params
+            }
+        
+        # 6. 压延参数
+        if experiment.rolling:
+            experiment_data['rolling'] = {
+                'rolling_machine': experiment.rolling.rolling_machine,
+                'rolling_pressure': float(experiment.rolling.rolling_pressure) if experiment.rolling.rolling_pressure else None,
+                'rolling_tension': float(experiment.rolling.rolling_tension) if experiment.rolling.rolling_tension else None,
+                'rolling_speed': float(experiment.rolling.rolling_speed) if experiment.rolling.rolling_speed else None
+            }
+        
+        # 7. 成品参数
+        if experiment.product:
+            experiment_data['product'] = {
+                'product_code': experiment.product.product_code,
+                'avg_thickness': float(experiment.product.avg_thickness) if experiment.product.avg_thickness else None,
+                'specification': experiment.product.specification,
+                'avg_density': float(experiment.product.avg_density) if experiment.product.avg_density else None,
+                'thermal_diffusivity': float(experiment.product.thermal_diffusivity) if experiment.product.thermal_diffusivity else None,
+                'thermal_conductivity': float(experiment.product.thermal_conductivity) if experiment.product.thermal_conductivity else None,
+                'specific_heat': float(experiment.product.specific_heat) if experiment.product.specific_heat else None,
+                'cohesion': float(experiment.product.cohesion) if experiment.product.cohesion else None,
+                'peel_strength': float(experiment.product.peel_strength) if experiment.product.peel_strength else None,
+                'roughness': experiment.product.roughness,
+                'appearance_desc': experiment.product.appearance_desc,
+                'appearance_defect_photo': experiment.product.appearance_defect_photo,
+                'sample_photo': experiment.product.sample_photo,
+                'experiment_summary': experiment.product.experiment_summary,
+                'other_files': experiment.product.other_files,
+                'remarks': experiment.product.remarks
+            }
         
         return jsonify({'experiment': experiment_data}), 200
         

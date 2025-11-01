@@ -104,25 +104,20 @@
             <el-descriptions-item label="PI膜厂商">
               {{ piData.pi_manufacturer || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="PI膜初始厚度(μm)">
+            <el-descriptions-item label="PI膜厚度(μm)">
               {{ piData.pi_thickness_detail || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="PI膜型号详情">
+            <el-descriptions-item label="PI膜型号">
               {{ piData.pi_model_detail || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="PI膜宽幅(mm)">
+              {{ piData.pi_width || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="批次号">
+              {{ piData.batch_number || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="PI重量(kg)">
               {{ piData.pi_weight || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="PI膜照片" :span="2">
-              <div v-if="piData.pi_film_photo">
-                <el-image
-                  :src="piData.pi_film_photo"
-                  fit="cover"
-                  :preview-src-list="[piData.pi_film_photo]"
-                  style="width: 100px; height: 100px;"
-                />
-              </div>
-              <span v-else>-</span>
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
@@ -130,22 +125,17 @@
         <!-- 3. 松卷参数 -->
         <el-tab-pane label="松卷参数" name="loose">
           <el-descriptions :column="2" border class="detail-section">
-            <el-descriptions-item label="松卷方式">
-              {{ looseData.loose_method || '-' }}
+            <el-descriptions-item label="卷芯筒类型">
+              {{ looseData.core_tube_type || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="松卷后PI膜重量(kg)">
-              {{ looseData.loose_pi_weight || '-' }}
+            <el-descriptions-item label="松卷间隙卷内(μm)">
+              {{ looseData.loose_gap_inner || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="松卷后PI膜照片" :span="2">
-              <div v-if="looseData.loose_pi_photo">
-                <el-image
-                  :src="looseData.loose_pi_photo"
-                  fit="cover"
-                  :preview-src-list="[looseData.loose_pi_photo]"
-                  style="width: 100px; height: 100px;"
-                />
-              </div>
-              <span v-else>-</span>
+            <el-descriptions-item label="松卷间隙卷中(μm)">
+              {{ looseData.loose_gap_middle || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="松卷间隙卷外(μm)">
+              {{ looseData.loose_gap_outer || '-' }}
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
@@ -154,35 +144,70 @@
         <el-tab-pane label="碳化参数" name="carbon">
           <el-descriptions :column="2" border class="detail-section">
             <el-descriptions-item label="碳化炉编号">
-              {{ carbonData.carbon_furnace_num || '-' }}
+              {{ carbonData.carbon_furnace_number || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="碳化炉次">
-              {{ carbonData.carbon_batch_num || '-' }}
+              {{ carbonData.carbon_furnace_batch || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="舟模型">
+              {{ carbonData.boat_model || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="包覆方式">
+              {{ carbonData.wrapping_method || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="真空度">
+              {{ carbonData.vacuum_degree || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="功率消耗">
+              {{ carbonData.power_consumption || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="开始时间">
+              {{ formatDateTime(carbonData.start_time) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="结束时间">
+              {{ formatDateTime(carbonData.end_time) }}
             </el-descriptions-item>
             <el-descriptions-item label="碳化最高温度(℃)">
               {{ carbonData.carbon_max_temp || '-' }}
             </el-descriptions-item>
+            <el-descriptions-item label="碳化总时长(min)">
+              {{ carbonData.carbon_total_time || '-' }}
+            </el-descriptions-item>
             <el-descriptions-item label="碳化膜厚度(μm)">
               {{ carbonData.carbon_film_thickness || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="碳化总时长(h)">
-              {{ carbonData.carbon_total_time || '-' }}
-            </el-descriptions-item>
             <el-descriptions-item label="碳化后重量(kg)">
-              {{ carbonData.carbon_weight || '-' }}
+              {{ carbonData.carbon_after_weight || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="碳化成碳率(%)">
               {{ carbonData.carbon_yield_rate || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="碳化膜照片" :span="2">
-              <div v-if="carbonData.carbon_film_photo">
+            <el-descriptions-item label="碳化装载方式照片" :span="2">
+              <div v-if="carbonData.carbon_loading_photo">
                 <el-image
-                  :src="carbonData.carbon_film_photo"
+                  :src="carbonData.carbon_loading_photo"
                   fit="cover"
-                  :preview-src-list="[carbonData.carbon_film_photo]"
+                  :preview-src-list="[carbonData.carbon_loading_photo]"
                   style="width: 100px; height: 100px;"
                 />
               </div>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="碳化样品照片" :span="2">
+              <div v-if="carbonData.carbon_sample_photo">
+                <el-image
+                  :src="carbonData.carbon_sample_photo"
+                  fit="cover"
+                  :preview-src-list="[carbonData.carbon_sample_photo]"
+                  style="width: 100px; height: 100px;"
+                />
+              </div>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="碳化其它参数" :span="2">
+              <el-link v-if="carbonData.carbon_other_params" type="primary" :href="carbonData.carbon_other_params" target="_blank">
+                查看文件
+              </el-link>
               <span v-else>-</span>
             </el-descriptions-item>
           </el-descriptions>
@@ -192,41 +217,73 @@
         <el-tab-pane label="石墨化参数" name="graphite">
           <el-descriptions :column="2" border class="detail-section">
             <el-descriptions-item label="石墨炉编号">
-              {{ graphiteData.graphite_furnace_num || '-' }}
+              {{ graphiteData.graphite_furnace_number || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="气压值(MPa)">
-              {{ graphiteData.pressure_value || '-' }}
+            <el-descriptions-item label="石墨炉次">
+              {{ graphiteData.graphite_furnace_batch || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="石墨化最高温度(℃)">
-              {{ graphiteData.graphite_max_temp || '-' }}
+            <el-descriptions-item label="开始时间">
+              {{ formatDateTime(graphiteData.graphite_start_time) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="结束时间">
+              {{ formatDateTime(graphiteData.graphite_end_time) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="气体压力">
+              {{ graphiteData.gas_pressure || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化功率">
+              {{ graphiteData.graphite_power || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="发泡厚度(μm)">
               {{ graphiteData.foam_thickness || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="石墨化膜厚度(μm)">
-              {{ graphiteData.graphite_film_thickness || '-' }}
+            <el-descriptions-item label="石墨化最高温度(℃)">
+              {{ graphiteData.graphite_max_temp || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="石墨化总时长(h)">
+            <el-descriptions-item label="石墨化宽度(mm)">
+              {{ graphiteData.graphite_width || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="收缩率">
+              {{ graphiteData.shrinkage_ratio || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化总时长(min)">
               {{ graphiteData.graphite_total_time || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="石墨化后重量(kg)">
-              {{ graphiteData.graphite_weight || '-' }}
+              {{ graphiteData.graphite_after_weight || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="石墨化成碳率(%)">
               {{ graphiteData.graphite_yield_rate || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="石墨化减重率(%)">
-              {{ graphiteData.graphite_weight_loss_rate || '-' }}
+            <el-descriptions-item label="石墨化最小厚度(μm)">
+              {{ graphiteData.graphite_min_thickness || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="石墨化膜照片" :span="2">
-              <div v-if="graphiteData.graphite_film_photo">
+            <el-descriptions-item label="石墨化装载方式照片" :span="2">
+              <div v-if="graphiteData.graphite_loading_photo">
                 <el-image
-                  :src="graphiteData.graphite_film_photo"
+                  :src="graphiteData.graphite_loading_photo"
                   fit="cover"
-                  :preview-src-list="[graphiteData.graphite_film_photo]"
+                  :preview-src-list="[graphiteData.graphite_loading_photo]"
                   style="width: 100px; height: 100px;"
                 />
               </div>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化样品照片" :span="2">
+              <div v-if="graphiteData.graphite_sample_photo">
+                <el-image
+                  :src="graphiteData.graphite_sample_photo"
+                  fit="cover"
+                  :preview-src-list="[graphiteData.graphite_sample_photo]"
+                  style="width: 100px; height: 100px;"
+                />
+              </div>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化其它参数" :span="2">
+              <el-link v-if="graphiteData.graphite_other_params" type="primary" :href="graphiteData.graphite_other_params" target="_blank">
+                查看文件
+              </el-link>
               <span v-else>-</span>
             </el-descriptions-item>
           </el-descriptions>
@@ -235,84 +292,90 @@
         <!-- 6. 压延参数 -->
         <el-tab-pane label="压延参数" name="rolling">
           <el-descriptions :column="2" border class="detail-section">
-            <el-descriptions-item label="压延温度(℃)">
-              {{ rollingData.rolling_temperature || '-' }}
+            <el-descriptions-item label="压延机台">
+              {{ rollingData.rolling_machine || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="压延次数">
-              {{ rollingData.rolling_times || '-' }}
+            <el-descriptions-item label="压延压力(MPa)">
+              {{ rollingData.rolling_pressure || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="压延机速度(m/min)">
+            <el-descriptions-item label="压延张力">
+              {{ rollingData.rolling_tension || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="压延速度(m/s)">
               {{ rollingData.rolling_speed || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="压延后石墨膜厚度(μm)">
-              {{ rollingData.rolling_film_thickness || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="压延减薄率(%)">
-              {{ rollingData.rolling_thinning_rate || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="压延后石墨膜照片" :span="2">
-              <div v-if="rollingData.rolling_film_photo">
-                <el-image
-                  :src="rollingData.rolling_film_photo"
-                  fit="cover"
-                  :preview-src-list="[rollingData.rolling_film_photo]"
-                  style="width: 100px; height: 100px;"
-                />
-              </div>
-              <span v-else>-</span>
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
 
-        <!-- 7. 成品参数 -->
+        <!-- 7. 成品参数 (7/7) -->
         <el-tab-pane label="成品参数" name="product">
           <el-descriptions :column="2" border class="detail-section">
-            <el-descriptions-item label="成品密度(g/cm³)">
-              {{ productData.product_density || '-' }}
+            <el-descriptions-item label="成品编码">
+              {{ productData.product_code || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品石墨膜厚度(μm)">
-              {{ productData.product_film_thickness || '-' }}
+            <el-descriptions-item label="样品平均厚度(μm)">
+              {{ productData.avg_thickness || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品导热系数(W/m·K)">
-              {{ productData.thermal_conductivity || '-' }}
+            <el-descriptions-item label="规格(宽幅mm×长m)">
+              {{ productData.specification || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品热扩散系数(cm²/s)">
+            <el-descriptions-item label="平均密度(g/cm³)">
+              {{ productData.avg_density || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="热扩散系数(mm²/s)">
               {{ productData.thermal_diffusivity || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品电阻率(μΩ·cm)">
-              {{ productData.electrical_resistivity || '-' }}
+            <el-descriptions-item label="导热系数(W/m·K)">
+              {{ productData.thermal_conductivity || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品拉伸强度(MPa)">
-              {{ productData.tensile_strength || '-' }}
+            <el-descriptions-item label="比热(J/g·K)">
+              {{ productData.specific_heat || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品杨氏模量(GPa)">
-              {{ productData.youngs_modulus || '-' }}
+            <el-descriptions-item label="内聚力(gf)">
+              {{ productData.cohesion || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品断裂伸长率(%)">
-              {{ productData.elongation_at_break || '-' }}
+            <el-descriptions-item label="剥离力(gf)">
+              {{ productData.peel_strength || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品XRD分析结果">
-              {{ productData.xrd_analysis || '-' }}
+            <el-descriptions-item label="粗糙度">
+              {{ productData.roughness || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品Raman光谱分析结果">
-              {{ productData.raman_analysis || '-' }}
+            <el-descriptions-item label="外观及不良情况描述" :span="2">
+              {{ productData.appearance_desc || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="成品照片" :span="2">
-              <div v-if="productData.product_photo">
+            <el-descriptions-item label="外观不良照片" :span="2">
+              <div v-if="productData.appearance_defect_photo">
                 <el-image
-                  :src="productData.product_photo"
+                  :src="productData.appearance_defect_photo"
                   fit="cover"
-                  :preview-src-list="[productData.product_photo]"
+                  :preview-src-list="[productData.appearance_defect_photo]"
                   style="width: 100px; height: 100px;"
                 />
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
-            <el-descriptions-item label="成品测试报告" :span="2">
-              <el-link v-if="productData.product_test_report" type="primary" :href="productData.product_test_report" target="_blank">
-                查看报告
+            <el-descriptions-item label="样品照片" :span="2">
+              <div v-if="productData.sample_photo">
+                <el-image
+                  :src="productData.sample_photo"
+                  fit="cover"
+                  :preview-src-list="[productData.sample_photo]"
+                  style="width: 100px; height: 100px;"
+                />
+              </div>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="实验总结" :span="2">
+              {{ productData.experiment_summary || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="其它文件" :span="2">
+              <el-link v-if="productData.other_files" type="primary" :href="productData.other_files" target="_blank">
+                查看文件
               </el-link>
               <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">
+              {{ productData.remarks || '-' }}
             </el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
@@ -370,8 +433,12 @@ async function loadExperimentDetail() {
 
     experimentId.value = id
     const response = await experimentApi.getExperimentDetail(id)
-    // ✅ 修复:后端直接返回实验对象
-    const exp = response.data || response
+    console.log('✅ API 响应:', response)
+
+    // 处理嵌套的 experiment 字段
+    const data = response.data || response
+    const exp = data.experiment || data
+    console.log('📦 完整响应数据:', data)
     console.log('📦 解析后的实验数据:', exp)
 
     if (!exp) {
@@ -379,19 +446,56 @@ async function loadExperimentDetail() {
     }
 
     // 填充实验基本信息
-    Object.assign(experimentData, exp)
+    Object.assign(experimentData, {
+      experiment_code: exp.experiment_code,
+      status: exp.status,
+      creator_name: exp.creator_name || exp.created_by,
+      created_at: exp.created_at,
+      submitted_at: exp.submitted_at,
+      updated_at: exp.updated_at
+    })
 
-    // 填充各模块数据（如果后端返回了分模块的数据结构）
-    Object.assign(basicData, exp.basic || exp)
-    Object.assign(piData, exp.pi || {})
-    Object.assign(looseData, exp.loose || {})
-    Object.assign(carbonData, exp.carbon || {})
-    Object.assign(graphiteData, exp.graphite || {})
-    Object.assign(rollingData, exp.rolling || {})
-    Object.assign(productData, exp.product || {})
+    // 填充各模块数据 - 根据后端返回的实际数据结构
+    // 如果后端返回分模块数据，使用模块数据；否则从主数据中提取
+    if (exp.basic || exp.experiment_basic) {
+      Object.assign(basicData, exp.basic || exp.experiment_basic)
+    }
+    
+    if (exp.pi || exp.experiment_pi) {
+      Object.assign(piData, exp.pi || exp.experiment_pi)
+    }
+    
+    if (exp.loose || exp.experiment_loose) {
+      Object.assign(looseData, exp.loose || exp.experiment_loose)
+    }
+    
+    if (exp.carbon || exp.experiment_carbon) {
+      Object.assign(carbonData, exp.carbon || exp.experiment_carbon)
+    }
+    
+    if (exp.graphite || exp.experiment_graphite) {
+      Object.assign(graphiteData, exp.graphite || exp.experiment_graphite)
+    }
+    
+    if (exp.rolling || exp.experiment_rolling) {
+      Object.assign(rollingData, exp.rolling || exp.experiment_rolling)
+    }
+    
+    if (exp.product || exp.experiment_product) {
+      Object.assign(productData, exp.product || exp.experiment_product)
+    }
+
+    console.log('✅ 各模块数据加载完成')
+    console.log('基本参数:', basicData)
+    console.log('PI膜参数:', piData)
+    console.log('松卷参数:', looseData)
+    console.log('碳化参数:', carbonData)
+    console.log('石墨化参数:', graphiteData)
+    console.log('压延参数:', rollingData)
+    console.log('成品参数:', productData)
 
   } catch (error: any) {
-    console.error('加载实验详情失败:', error)
+    console.error('❌ 加载实验详情失败:', error)
     ElMessage.error(error.message || '加载实验详情失败')
   } finally {
     loading.value = false
