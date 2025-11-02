@@ -1107,24 +1107,26 @@ def _save_optional_modules(experiment_id, data):
             loose_gap_outer=data.get('loose_gap_outer')
         )
         db.session.add(loose)
-    
-# 碳化参数
+        
+    # 碳化参数
     if data.get('carbon_furnace_num'):
         carbon = ExperimentCarbon(
             experiment_id=experiment_id,
             carbon_furnace_number=data.get('carbon_furnace_num'),
             carbon_furnace_batch=data.get('carbon_batch_num'),
             boat_model=data.get('boat_model'),
-            wrapping_method=data.get('wrap_type'),  # ✅ 修复：wrap_type -> wrapping_method
+            wrapping_method=data.get('wrap_type'),
             vacuum_degree=data.get('vacuum_degree'),
-            power_consumption=data.get('carbon_power'),  # ✅ 修复：carbon_power -> power_consumption
-            start_time=_parse_datetime(data.get('carbon_start_time')),  # ✅ 修复：carbon_start_time -> start_time
-            end_time=_parse_datetime(data.get('carbon_end_time')),  # ✅ 修复：carbon_end_time -> end_time
-            # ❌ 删除：数据库中不存在这些字段
-            # carbon_temp1=data.get('carbon_temp1'),
-            # carbon_thickness1=data.get('carbon_thickness1'),
-            # carbon_temp2=data.get('carbon_temp2'),
-            # carbon_thickness2=data.get('carbon_thickness2'),
+            power_consumption=data.get('carbon_power'),
+            start_time=_parse_datetime(data.get('carbon_start_time')),
+            end_time=_parse_datetime(data.get('carbon_end_time')),
+            
+            # ✅ 新增：碳化温度/厚度字段
+            carbon_temp1=data.get('carbon_temp1'),
+            carbon_thickness1=data.get('carbon_thickness1'),
+            carbon_temp2=data.get('carbon_temp2'),
+            carbon_thickness2=data.get('carbon_thickness2'),
+            
             carbon_max_temp=data.get('carbon_max_temp'),
             carbon_film_thickness=data.get('carbon_film_thickness'),
             carbon_total_time=data.get('carbon_total_time'),
@@ -1132,8 +1134,8 @@ def _save_optional_modules(experiment_id, data):
             carbon_yield_rate=data.get('carbon_yield_rate')
         )
         db.session.add(carbon)
-    
-    # 石墨化参数
+        
+        # 石墨化参数
     if data.get('graphite_furnace_num'):
         graphite = ExperimentGraphite(
             experiment_id=experiment_id,
@@ -1143,8 +1145,23 @@ def _save_optional_modules(experiment_id, data):
             graphite_end_time=_parse_datetime(data.get('graphite_end_time')),
             gas_pressure=data.get('pressure_value'),
             graphite_power=data.get('graphite_power'),
-            graphite_max_temp=data.get('graphite_max_temp'),
+            
+            # ✅ 新增：石墨化温度/厚度字段
+            graphite_temp1=data.get('graphite_temp1'),
+            graphite_thickness1=data.get('graphite_thickness1'),
+            graphite_temp2=data.get('graphite_temp2'),
+            graphite_thickness2=data.get('graphite_thickness2'),
+            graphite_temp3=data.get('graphite_temp3'),
+            graphite_thickness3=data.get('graphite_thickness3'),
+            graphite_temp4=data.get('graphite_temp4'),
+            graphite_thickness4=data.get('graphite_thickness4'),
+            graphite_temp5=data.get('graphite_temp5'),
+            graphite_thickness5=data.get('graphite_thickness5'),
+            graphite_temp6=data.get('graphite_temp6'),
+            graphite_thickness6=data.get('graphite_thickness6'),
+            
             foam_thickness=data.get('foam_thickness'),
+            graphite_max_temp=data.get('graphite_max_temp'),
             graphite_width=data.get('graphite_width'),
             shrinkage_ratio=data.get('shrinkage_ratio'),
             graphite_total_time=data.get('graphite_total_time'),
@@ -1228,17 +1245,24 @@ def _save_all_modules(experiment_id, data):
     db.session.add(loose)
     
 # 4. 碳化参数
+    # 4. 碳化参数
     carbon = ExperimentCarbon(
         experiment_id=experiment_id,
         carbon_furnace_number=data['carbon_furnace_num'],
         carbon_furnace_batch=data['carbon_batch_num'],
         boat_model=data.get('boat_model'),
-        wrapping_method=data.get('wrap_type'),  # ✅ 修复
+        wrapping_method=data.get('wrap_type'),
         vacuum_degree=data.get('vacuum_degree'),
-        power_consumption=data.get('carbon_power'),  # ✅ 修复
-        start_time=_parse_datetime(data.get('carbon_start_time')),  # ✅ 修复
-        end_time=_parse_datetime(data.get('carbon_end_time')),  # ✅ 修复
-        # ❌ 删除不存在的字段
+        power_consumption=data.get('carbon_power'),
+        start_time=_parse_datetime(data.get('carbon_start_time')),
+        end_time=_parse_datetime(data.get('carbon_end_time')),
+    
+    # ✅ 新增：碳化温度/厚度字段
+        carbon_temp1=data.get('carbon_temp1'),
+        carbon_thickness1=data.get('carbon_thickness1'),
+        carbon_temp2=data.get('carbon_temp2'),
+        carbon_thickness2=data.get('carbon_thickness2'),
+    
         carbon_max_temp=data['carbon_max_temp'],
         carbon_film_thickness=data['carbon_film_thickness'],
         carbon_total_time=data['carbon_total_time'],

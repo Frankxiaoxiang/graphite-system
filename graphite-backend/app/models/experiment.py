@@ -104,6 +104,11 @@ class ExperimentCarbon(db.Model):
     power_consumption = db.Column(db.Numeric(10, 2))
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
+        # ✅ 新增：碳化温度/厚度字段
+    carbon_temp1 = db.Column(db.Integer)
+    carbon_thickness1 = db.Column(db.Numeric(10, 2))
+    carbon_temp2 = db.Column(db.Integer)
+    carbon_thickness2 = db.Column(db.Numeric(10, 2))
     carbon_max_temp = db.Column(db.Numeric(8, 2))
     carbon_total_time = db.Column(db.Integer)
     carbon_film_thickness = db.Column(db.Numeric(8, 2))

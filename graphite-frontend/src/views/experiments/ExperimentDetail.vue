@@ -167,6 +167,21 @@
             <el-descriptions-item label="结束时间">
               {{ formatDateTime(carbonData.end_time) }}
             </el-descriptions-item>
+
+          <!-- ✅ 新增：碳化温度/厚度字段 -->
+            <el-descriptions-item label="碳化温度1(℃)">
+              {{ carbonData.carbon_temp1 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="碳化厚度1(μm)">
+              {{ carbonData.carbon_thickness1 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="碳化温度2(℃)">
+              {{ carbonData.carbon_temp2 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="碳化厚度2(μm)">
+              {{ carbonData.carbon_thickness2 || '-' }}
+            </el-descriptions-item>
+
             <el-descriptions-item label="碳化最高温度(℃)">
               {{ carbonData.carbon_max_temp || '-' }}
             </el-descriptions-item>
@@ -234,6 +249,45 @@
             <el-descriptions-item label="石墨化功率">
               {{ graphiteData.graphite_power || '-' }}
             </el-descriptions-item>
+
+            <!-- ✅ 新增：石墨化温度/厚度字段 -->
+            <el-descriptions-item label="石墨化温度1(℃)">
+              {{ graphiteData.graphite_temp1 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度1(μm)">
+              {{ graphiteData.graphite_thickness1 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化温度2(℃)">
+              {{ graphiteData.graphite_temp2 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度2(μm)">
+              {{ graphiteData.graphite_thickness2 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化温度3(℃)">
+              {{ graphiteData.graphite_temp3 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度3(μm)">
+              {{ graphiteData.graphite_thickness3 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化温度4(℃)">
+              {{ graphiteData.graphite_temp4 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度4(μm)">
+              {{ graphiteData.graphite_thickness4 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化温度5(℃)">
+              {{ graphiteData.graphite_temp5 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度5(μm)">
+              {{ graphiteData.graphite_thickness5 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化温度6(℃)">
+              {{ graphiteData.graphite_temp6 || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="石墨化厚度6(μm)">
+              {{ graphiteData.graphite_thickness6 || '-' }}
+            </el-descriptions-item>
+
             <el-descriptions-item label="发泡厚度(μm)">
               {{ graphiteData.foam_thickness || '-' }}
             </el-descriptions-item>
@@ -460,27 +514,27 @@ async function loadExperimentDetail() {
     if (exp.basic || exp.experiment_basic) {
       Object.assign(basicData, exp.basic || exp.experiment_basic)
     }
-    
+
     if (exp.pi || exp.experiment_pi) {
       Object.assign(piData, exp.pi || exp.experiment_pi)
     }
-    
+
     if (exp.loose || exp.experiment_loose) {
       Object.assign(looseData, exp.loose || exp.experiment_loose)
     }
-    
+
     if (exp.carbon || exp.experiment_carbon) {
       Object.assign(carbonData, exp.carbon || exp.experiment_carbon)
     }
-    
+
     if (exp.graphite || exp.experiment_graphite) {
       Object.assign(graphiteData, exp.graphite || exp.experiment_graphite)
     }
-    
+
     if (exp.rolling || exp.experiment_rolling) {
       Object.assign(rollingData, exp.rolling || exp.experiment_rolling)
     }
-    
+
     if (exp.product || exp.experiment_product) {
       Object.assign(productData, exp.product || exp.experiment_product)
     }
