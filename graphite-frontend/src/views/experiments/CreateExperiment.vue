@@ -1021,13 +1021,14 @@ watch([
 
 /**
  * 加载草稿数据并填充到表单
+ * @param expId 实验ID（使用不同的参数名避免与 ref 变量冲突）
  */
-async function loadDraftData(experimentId: number) {
+async function loadDraftData(expId: number) {
   try {
-    console.log('📖 加载草稿数据，ID:', experimentId)
+    console.log('📖 加载草稿数据，ID:', expId)
 
     // 调用API获取实验详情
-    const response = await experimentApi.getExperiment(experimentId)
+    const response = await experimentApi.getExperiment(expId)
     const data = response.experiment
 
     console.log('✅ 草稿数据加载成功:', data)
@@ -1155,9 +1156,12 @@ async function loadDraftData(experimentId: number) {
       formData.other_files = data.product.other_files
     }
 
-    // 设置实验ID和编码（用于后续更新）
-    experimentId.value = data.id
+    // ✅ 关键修复：设置实验ID和编码（用于后续更新）
+    experimentId.value = data.id  // ← 现在访问的是外部的 ref 变量
     experimentCode.value = data.experiment_code
+
+    console.log('✅ 实验ID已设置:', experimentId.value)
+    console.log('✅ 实验编码已设置:', experimentCode.value)
 
     ElMessage.success('草稿数据加载成功')
 
