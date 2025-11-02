@@ -798,7 +798,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+// 添加一个逗号和 useRoute
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox, ElForm } from 'element-plus'
 import {
@@ -811,6 +812,7 @@ import { experimentApi } from '@/api/experiments'
 import { dropdownApi } from '@/api/dropdown'
 
 const router = useRouter()
+const route = useRoute()  // ✅ 添加这行
 const authStore = useAuthStore()
 const formRef = ref<InstanceType<typeof ElForm>>()
 
@@ -1017,11 +1019,171 @@ watch([
   () => formData.experiment_group
 ], generateExperimentCode)
 
+/**
+ * 加载草稿数据并填充到表单
+ */
+async function loadDraftData(experimentId: number) {
+  try {
+    console.log('📖 加载草稿数据，ID:', experimentId)
+
+    // 调用API获取实验详情
+    const response = await experimentApi.getExperiment(experimentId)
+    const data = response.experiment
+
+    console.log('✅ 草稿数据加载成功:', data)
+
+    // 1. 填充基本参数
+    if (data.basic) {
+      formData.pi_film_thickness = data.basic.pi_film_thickness
+      formData.customer_type = data.basic.customer_type
+      formData.customer_name = data.basic.customer_name
+      formData.pi_film_model = data.basic.pi_film_model
+      formData.experiment_date = data.basic.experiment_date
+      formData.sintering_location = data.basic.sintering_location
+      formData.material_type_for_firing = data.basic.material_type_for_firing
+      formData.rolling_method = data.basic.rolling_method
+      formData.experiment_group = data.basic.experiment_group
+      formData.experiment_purpose = data.basic.experiment_purpose
+    }
+
+    // 2. 填充PI膜参数
+    if (data.pi) {
+      formData.pi_manufacturer = data.pi.pi_manufacturer
+      formData.pi_thickness_detail = data.pi.pi_thickness_detail
+      formData.pi_model_detail = data.pi.pi_model_detail
+      formData.pi_width = data.pi.pi_width
+      formData.batch_number = data.pi.batch_number
+      formData.pi_weight = data.pi.pi_weight
+    }
+
+    // 3. 填充松卷参数
+    if (data.loose) {
+      formData.core_tube_type = data.loose.core_tube_type
+      formData.loose_gap_inner = data.loose.loose_gap_inner
+      formData.loose_gap_middle = data.loose.loose_gap_middle
+      formData.loose_gap_outer = data.loose.loose_gap_outer
+    }
+
+    // 4. 填充碳化参数
+    if (data.carbon) {
+      formData.carbon_furnace_num = data.carbon.carbon_furnace_number
+      formData.carbon_batch_num = data.carbon.carbon_furnace_batch
+      formData.boat_model = data.carbon.boat_model
+      formData.wrap_type = data.carbon.wrapping_method
+      formData.vacuum_degree = data.carbon.vacuum_degree
+      formData.carbon_power = data.carbon.power_consumption
+      formData.carbon_start_time = data.carbon.start_time
+      formData.carbon_end_time = data.carbon.end_time
+
+      // ✅ 温度/厚度字段
+      formData.carbon_temp1 = data.carbon.carbon_temp1
+      formData.carbon_thickness1 = data.carbon.carbon_thickness1
+      formData.carbon_temp2 = data.carbon.carbon_temp2
+      formData.carbon_thickness2 = data.carbon.carbon_thickness2
+
+      formData.carbon_max_temp = data.carbon.carbon_max_temp
+      formData.carbon_film_thickness = data.carbon.carbon_film_thickness
+      formData.carbon_total_time = data.carbon.carbon_total_time
+      formData.carbon_weight = data.carbon.carbon_after_weight
+      formData.carbon_yield_rate = data.carbon.carbon_yield_rate
+      formData.carbon_loading_photo = data.carbon.carbon_loading_photo
+      formData.carbon_sample_photo = data.carbon.carbon_sample_photo
+      formData.carbon_other_params = data.carbon.carbon_other_params
+    }
+
+    // 5. 填充石墨化参数
+    if (data.graphite) {
+      formData.graphite_furnace_num = data.graphite.graphite_furnace_number
+      formData.graphite_batch_num = data.graphite.graphite_furnace_batch
+      formData.graphite_start_time = data.graphite.graphite_start_time
+      formData.graphite_end_time = data.graphite.graphite_end_time
+      formData.pressure_value = data.graphite.gas_pressure
+      formData.graphite_power = data.graphite.graphite_power
+
+      // ✅ 温度/厚度字段
+      formData.graphite_temp1 = data.graphite.graphite_temp1
+      formData.graphite_thickness1 = data.graphite.graphite_thickness1
+      formData.graphite_temp2 = data.graphite.graphite_temp2
+      formData.graphite_thickness2 = data.graphite.graphite_thickness2
+      formData.graphite_temp3 = data.graphite.graphite_temp3
+      formData.graphite_thickness3 = data.graphite.graphite_thickness3
+      formData.graphite_temp4 = data.graphite.graphite_temp4
+      formData.graphite_thickness4 = data.graphite.graphite_thickness4
+      formData.graphite_temp5 = data.graphite.graphite_temp5
+      formData.graphite_thickness5 = data.graphite.graphite_thickness5
+      formData.graphite_temp6 = data.graphite.graphite_temp6
+      formData.graphite_thickness6 = data.graphite.graphite_thickness6
+
+      formData.graphite_max_temp = data.graphite.graphite_max_temp
+      formData.foam_thickness = data.graphite.foam_thickness
+      formData.graphite_width = data.graphite.graphite_width
+      formData.shrinkage_ratio = data.graphite.shrinkage_ratio
+      formData.graphite_total_time = data.graphite.graphite_total_time
+      formData.graphite_weight = data.graphite.graphite_after_weight
+      formData.graphite_yield_rate = data.graphite.graphite_yield_rate
+      formData.graphite_min_thickness = data.graphite.graphite_min_thickness
+      formData.graphite_loading_photo = data.graphite.graphite_loading_photo
+      formData.graphite_sample_photo = data.graphite.graphite_sample_photo
+      formData.graphite_other_params = data.graphite.graphite_other_params
+    }
+
+    // 6. 填充压延参数
+    if (data.rolling) {
+      formData.rolling_machine_num = data.rolling.rolling_machine
+      formData.rolling_pressure = data.rolling.rolling_pressure
+      formData.rolling_tension = data.rolling.rolling_tension
+      formData.rolling_speed = data.rolling.rolling_speed
+    }
+
+    // 7. 填充成品参数
+    if (data.product) {
+      formData.product_code = data.product.product_code
+      formData.product_avg_thickness = data.product.avg_thickness
+      formData.product_spec = data.product.specification
+      formData.product_avg_density = data.product.avg_density
+      formData.thermal_diffusivity = data.product.thermal_diffusivity
+      formData.thermal_conductivity = data.product.thermal_conductivity
+      formData.specific_heat = data.product.specific_heat
+      formData.cohesion = data.product.cohesion
+      formData.peel_strength = data.product.peel_strength
+      formData.roughness = data.product.roughness
+      formData.appearance_description = data.product.appearance_desc
+      formData.experiment_summary = data.product.experiment_summary
+      formData.remarks = data.product.remarks
+      formData.defect_photo = data.product.appearance_defect_photo
+      formData.sample_photo = data.product.sample_photo
+      formData.other_files = data.product.other_files
+    }
+
+    // 设置实验ID和编码（用于后续更新）
+    experimentId.value = data.id
+    experimentCode.value = data.experiment_code
+
+    ElMessage.success('草稿数据加载成功')
+
+  } catch (error: any) {
+    console.error('❌ 加载草稿数据失败:', error)
+    ElMessage.error('加载草稿数据失败：' + (error.message || '未知错误'))
+  }
+}
+
 // 页面初始化
-onMounted(() => {
+onMounted(async () => {
+  // 1. 加载下拉选项
   loadDropdownOptions()
-  // 设置默认实验申请日期为今天
-  formData.experiment_date = new Date().toISOString().split('T')[0]
+
+  // 2. 检查是否是编辑模式（从路由获取experiment_id）
+  const experimentIdFromRoute = route.params.id
+
+  if (experimentIdFromRoute) {
+    // 编辑模式：加载草稿数据
+    console.log('📝 编辑模式，实验ID:', experimentIdFromRoute)
+    await loadDraftData(Number(experimentIdFromRoute))
+  } else {
+    // 创建模式：设置默认日期
+    console.log('✨ 创建模式')
+    formData.experiment_date = new Date().toISOString().split('T')[0]
+  }
 })
 
 // ✅ 修复后的生成实验编码函数

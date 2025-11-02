@@ -740,6 +740,13 @@ def get_experiment(experiment_id):
                 'power_consumption': float(experiment.carbon.power_consumption) if experiment.carbon.power_consumption else None,
                 'start_time': experiment.carbon.start_time.isoformat() if experiment.carbon.start_time else None,
                 'end_time': experiment.carbon.end_time.isoformat() if experiment.carbon.end_time else None,
+                
+                # ✅ 新增：碳化温度/厚度字段
+                'carbon_temp1': experiment.carbon.carbon_temp1,
+                'carbon_thickness1': float(experiment.carbon.carbon_thickness1) if experiment.carbon.carbon_thickness1 else None,
+                'carbon_temp2': experiment.carbon.carbon_temp2,
+                'carbon_thickness2': float(experiment.carbon.carbon_thickness2) if experiment.carbon.carbon_thickness2 else None,
+                
                 'carbon_max_temp': float(experiment.carbon.carbon_max_temp) if experiment.carbon.carbon_max_temp else None,
                 'carbon_total_time': experiment.carbon.carbon_total_time,
                 'carbon_film_thickness': float(experiment.carbon.carbon_film_thickness) if experiment.carbon.carbon_film_thickness else None,
@@ -759,6 +766,21 @@ def get_experiment(experiment_id):
                 'graphite_end_time': experiment.graphite.graphite_end_time.isoformat() if experiment.graphite.graphite_end_time else None,
                 'gas_pressure': float(experiment.graphite.gas_pressure) if experiment.graphite.gas_pressure else None,
                 'graphite_power': float(experiment.graphite.graphite_power) if experiment.graphite.graphite_power else None,
+                
+                # ✅ 新增：石墨化温度/厚度字段
+                'graphite_temp1': float(experiment.graphite.graphite_temp1) if experiment.graphite.graphite_temp1 else None,
+                'graphite_thickness1': float(experiment.graphite.graphite_thickness1) if experiment.graphite.graphite_thickness1 else None,
+                'graphite_temp2': float(experiment.graphite.graphite_temp2) if experiment.graphite.graphite_temp2 else None,
+                'graphite_thickness2': float(experiment.graphite.graphite_thickness2) if experiment.graphite.graphite_thickness2 else None,
+                'graphite_temp3': float(experiment.graphite.graphite_temp3) if experiment.graphite.graphite_temp3 else None,
+                'graphite_thickness3': float(experiment.graphite.graphite_thickness3) if experiment.graphite.graphite_thickness3 else None,
+                'graphite_temp4': float(experiment.graphite.graphite_temp4) if experiment.graphite.graphite_temp4 else None,
+                'graphite_thickness4': float(experiment.graphite.graphite_thickness4) if experiment.graphite.graphite_thickness4 else None,
+                'graphite_temp5': float(experiment.graphite.graphite_temp5) if experiment.graphite.graphite_temp5 else None,
+                'graphite_thickness5': float(experiment.graphite.graphite_thickness5) if experiment.graphite.graphite_thickness5 else None,
+                'graphite_temp6': float(experiment.graphite.graphite_temp6) if experiment.graphite.graphite_temp6 else None,
+                'graphite_thickness6': float(experiment.graphite.graphite_thickness6) if experiment.graphite.graphite_thickness6 else None,
+                
                 'foam_thickness': float(experiment.graphite.foam_thickness) if experiment.graphite.foam_thickness else None,
                 'graphite_max_temp': float(experiment.graphite.graphite_max_temp) if experiment.graphite.graphite_max_temp else None,
                 'graphite_width': float(experiment.graphite.graphite_width) if experiment.graphite.graphite_width else None,
