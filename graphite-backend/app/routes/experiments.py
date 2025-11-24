@@ -1066,29 +1066,30 @@ def export_experiments():
 # 🆕 新增：辅助函数
 # ==========================================
 def _validate_all_required_fields(data):
-    """验证所有必填字段（40个）"""
+    """验证所有必填字段（32个）- v1.1更新：删除8个必填字段"""
     required_fields = [
-        # 实验设计参数 (10个)
+        # 实验设计参数 (10个) - 无变化
         'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
         'experiment_date', 'sintering_location', 'material_type_for_firing',
         'rolling_method', 'experiment_group', 'experiment_purpose',
         
-        # PI膜参数 (4个)
+        # PI膜参数 (4个) - 无变化
         'pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 'pi_weight',
         
-        # 碳化参数 (7个)
-        'carbon_furnace_num', 'carbon_batch_num', 'carbon_max_temp',
-        'carbon_film_thickness', 'carbon_total_time', 'carbon_weight', 'carbon_yield_rate',
+        # ✅ 碳化参数 (4个) - 减少3个必填字段
+        'carbon_furnace_num', 'carbon_batch_num', 'carbon_max_temp', 'carbon_total_time',
+        # ❌ 删除：'carbon_film_thickness', 'carbon_weight', 'carbon_yield_rate'
         
-        # 石墨化参数 (9个)
-        'graphite_furnace_num', 'pressure_value', 'graphite_max_temp',
-        'foam_thickness', 'graphite_width', 'shrinkage_ratio',
-        'graphite_total_time', 'graphite_weight', 'graphite_yield_rate',
+        # ✅ 石墨化参数 (7个) - 减少2个必填字段
+        'graphite_furnace_num', 'graphite_max_temp', 'foam_thickness', 
+        'graphite_width', 'shrinkage_ratio', 'graphite_total_time', 'graphite_weight',
+        # ❌ 删除：'pressure_value', 'graphite_yield_rate'
         
-        # 产品参数 (10个)
+        # ✅ 产品参数 (7个) - 减少3个必填字段
         'product_avg_thickness', 'product_spec', 'product_avg_density',
         'thermal_diffusivity', 'thermal_conductivity', 'specific_heat',
-        'cohesion', 'peel_strength', 'roughness', 'appearance_description'
+        'appearance_description'
+        # ❌ 删除：'cohesion', 'peel_strength', 'roughness'
     ]
     
     missing_fields = []
@@ -1115,7 +1116,10 @@ def _save_optional_modules(experiment_id, data):
             pi_model_detail=data.get('pi_model_detail'),
             pi_width=data.get('pi_width'),
             batch_number=data.get('batch_number'),
-            pi_weight=data.get('pi_weight')
+            pi_weight=data.get('pi_weight'),
+            # ✅ 新增字段
+            firing_rolls=data.get('firing_rolls'),
+            pi_notes=data.get('pi_notes')
         )
         db.session.add(pi)
     
@@ -1153,7 +1157,8 @@ def _save_optional_modules(experiment_id, data):
             carbon_film_thickness=data.get('carbon_film_thickness'),
             carbon_total_time=data.get('carbon_total_time'),
             carbon_after_weight=data.get('carbon_weight'),
-            carbon_yield_rate=data.get('carbon_yield_rate')
+            carbon_yield_rate=data.get('carbon_yield_rate'),
+            carbon_notes=data.get('carbon_notes')
         )
         db.session.add(carbon)
         
@@ -1189,7 +1194,8 @@ def _save_optional_modules(experiment_id, data):
             graphite_total_time=data.get('graphite_total_time'),
             graphite_after_weight=data.get('graphite_weight'),
             graphite_yield_rate=data.get('graphite_yield_rate'),
-            graphite_min_thickness=data.get('graphite_min_thickness')
+            graphite_min_thickness=data.get('graphite_min_thickness'),
+            graphite_notes=data.get('graphite_notes')
         )
         db.session.add(graphite)
     
@@ -1200,7 +1206,8 @@ def _save_optional_modules(experiment_id, data):
             rolling_machine=data.get('rolling_machine_num'),
             rolling_pressure=data.get('rolling_pressure'),
             rolling_tension=data.get('rolling_tension'),
-            rolling_speed=data.get('rolling_speed')
+            rolling_speed=data.get('rolling_speed'),
+            rolling_notes=data.get('rolling_notes')
         )
         db.session.add(rolling)
     
@@ -1220,7 +1227,8 @@ def _save_optional_modules(experiment_id, data):
             roughness=data.get('roughness'),
             appearance_desc=data.get('appearance_description'),
             experiment_summary=data.get('experiment_summary'),
-            remarks=data.get('remarks')
+            remarks=data.get('remarks'),
+            bond_strength=data.get('bond_strength')
         )
         db.session.add(product)
 
@@ -1252,7 +1260,9 @@ def _save_all_modules(experiment_id, data):
         pi_model_detail=data['pi_model_detail'],
         pi_width=data.get('pi_width'),
         batch_number=data.get('batch_number'),
-        pi_weight=data['pi_weight']
+        pi_weight=data['pi_weight'],
+        firing_rolls=data.get('firing_rolls'),
+        pi_notes=data.get('pi_notes')
     )
     db.session.add(pi)
     
@@ -1289,7 +1299,8 @@ def _save_all_modules(experiment_id, data):
         carbon_film_thickness=data['carbon_film_thickness'],
         carbon_total_time=data['carbon_total_time'],
         carbon_after_weight=data['carbon_weight'],
-        carbon_yield_rate=data['carbon_yield_rate']
+        carbon_yield_rate=data['carbon_yield_rate'],
+        carbon_notes=data.get('carbon_notes')
     )
     db.session.add(carbon)
     
@@ -1321,7 +1332,8 @@ def _save_all_modules(experiment_id, data):
         graphite_total_time=data['graphite_total_time'],
         graphite_after_weight=data['graphite_weight'],
         graphite_yield_rate=data['graphite_yield_rate'],
-        graphite_min_thickness=data.get('graphite_min_thickness')
+        graphite_min_thickness=data.get('graphite_min_thickness'),
+        graphite_notes=data.get('graphite_notes')
     )
     db.session.add(graphite)
     
@@ -1331,7 +1343,8 @@ def _save_all_modules(experiment_id, data):
         rolling_machine=data.get('rolling_machine_num'),
         rolling_pressure=data.get('rolling_pressure'),
         rolling_tension=data.get('rolling_tension'),
-        rolling_speed=data.get('rolling_speed')
+        rolling_speed=data.get('rolling_speed'),
+        rolling_notes=data.get('rolling_notes')
     )
     db.session.add(rolling)
     
@@ -1350,7 +1363,8 @@ def _save_all_modules(experiment_id, data):
         roughness=data['roughness'],
         appearance_desc=data['appearance_description'],
         experiment_summary=data.get('experiment_summary'),
-        remarks=data.get('remarks')
+        remarks=data.get('remarks'),
+        bond_strength=data.get('bond_strength')
     )
     db.session.add(product)
 

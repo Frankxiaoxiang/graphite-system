@@ -72,6 +72,8 @@ class ExperimentPi(db.Model):
     pi_width = db.Column(db.Numeric(10, 2))
     batch_number = db.Column(db.String(100))
     pi_weight = db.Column(db.Numeric(10, 3))
+    firing_rolls = db.Column(db.Integer, comment='烧制卷数')
+    pi_notes = db.Column(db.Text, comment='PI膜补充说明')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -117,6 +119,7 @@ class ExperimentCarbon(db.Model):
     carbon_loading_photo = db.Column(db.String(255))
     carbon_sample_photo = db.Column(db.String(255))
     carbon_other_params = db.Column(db.String(255))
+    carbon_notes = db.Column(db.Text, comment='碳化补充说明')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -157,6 +160,7 @@ class ExperimentGraphite(db.Model):
     graphite_sample_photo = db.Column(db.String(255))
     graphite_min_thickness = db.Column(db.Numeric(8, 2))
     graphite_other_params = db.Column(db.String(255))
+    graphite_notes = db.Column(db.Text, comment='石墨化补充说明')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -171,6 +175,7 @@ class ExperimentRolling(db.Model):
     rolling_pressure = db.Column(db.Numeric(8, 2))
     rolling_tension = db.Column(db.Numeric(8, 2))
     rolling_speed = db.Column(db.Numeric(8, 3))
+    rolling_notes = db.Column(db.Text, comment='压延补充说明')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -197,5 +202,6 @@ class ExperimentProduct(db.Model):
     experiment_summary = db.Column(db.Text)
     other_files = db.Column(db.String(255))
     remarks = db.Column(db.Text)
+    bond_strength = db.Column(db.Numeric(8, 2), comment='结合力')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

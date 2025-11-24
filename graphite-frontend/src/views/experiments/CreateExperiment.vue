@@ -205,6 +205,30 @@
                     controls-position="right"
                   />
                 </el-form-item>
+
+                <!-- ✅ 新增：烧制卷数 -->
+                <el-form-item label="烧制卷数" prop="firing_rolls">
+                  <el-input-number
+                    v-model="formData.firing_rolls"
+                    :min="1"
+                    :max="100"
+                    :precision="0"
+                    placeholder="请输入烧制卷数（非必填）"
+                  />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
+                </el-form-item>
+
+                <!-- ✅ 新增：PI膜补充说明 -->
+                <el-form-item label="PI膜补充说明" prop="pi_notes">
+                  <el-input
+                    v-model="formData.pi_notes"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入PI膜补充说明（非必填）"
+                    maxlength="500"
+                    show-word-limit
+                  />
+                </el-form-item>
               </div>
             </div>
           </el-tab-pane>
@@ -355,13 +379,15 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="碳化膜厚度(μm)" prop="carbon_film_thickness" required>
+                <!-- ✅ 修改：碳化膜厚度 - 改为非必填 -->
+                <el-form-item label="碳化膜厚度(μm)" prop="carbon_film_thickness">
                   <el-input-number
                     v-model="formData.carbon_film_thickness"
-                    :min="0"
+                    :min="1"
                     :precision="2"
-                    controls-position="right"
+                    placeholder="请输入碳化膜厚度（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <el-form-item label="碳化总时长(min)" prop="carbon_total_time" required>
@@ -373,23 +399,27 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="碳化后重量(kg)" prop="carbon_weight" required>
+                <!-- ✅ 修改：碳化后重量 - 改为非必填 -->
+                <el-form-item label="碳化后重量(kg)" prop="carbon_weight">
                   <el-input-number
                     v-model="formData.carbon_weight"
                     :min="0"
                     :precision="3"
-                    controls-position="right"
+                    placeholder="请输入碳化后重量（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
-                <el-form-item label="成碳率(%)" prop="carbon_yield_rate" required>
+                <!-- ✅ 修改：成碳率 - 改为非必填 -->
+                <el-form-item label="成碳率%" prop="carbon_yield_rate">
                   <el-input-number
                     v-model="formData.carbon_yield_rate"
                     :min="0"
                     :max="100"
                     :precision="2"
-                    controls-position="right"
+                    placeholder="请输入成碳率（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <!-- 文件上传 -->
@@ -414,6 +444,18 @@
                     v-model="formData.carbon_other_params"
                     accept=".pdf,.jpg,.png"
                     :max-size="10"
+                  />
+                </el-form-item>
+
+                <!-- ✅ 新增：碳化补充说明 -->
+                <el-form-item label="碳化补充说明" prop="carbon_notes">
+                  <el-input
+                    v-model="formData.carbon_notes"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入碳化补充说明（非必填）"
+                    maxlength="500"
+                    show-word-limit
                   />
                 </el-form-item>
               </div>
@@ -458,12 +500,15 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="气压值" prop="pressure_value" required>
+                <!-- ✅ 修改：气压值 - 改为非必填 -->
+                <el-form-item label="气压值" prop="pressure_value">
                   <el-input-number
                     v-model="formData.pressure_value"
-                    :precision="2"
-                    controls-position="right"
+                    :min="0"
+                    :precision="4"
+                    placeholder="请输入气压值（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <el-form-item label="电量" prop="graphite_power">
@@ -549,14 +594,16 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="成碳率(%)" prop="graphite_yield_rate" required>
+                <!-- ✅ 修改：成碳率 - 改为非必填 -->
+                <el-form-item label="成碳率%" prop="graphite_yield_rate">
                   <el-input-number
                     v-model="formData.graphite_yield_rate"
                     :min="0"
                     :max="100"
                     :precision="2"
-                    controls-position="right"
+                    placeholder="请输入成碳率（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <el-form-item label="石墨压延最薄极限" prop="graphite_min_thickness">
@@ -590,6 +637,18 @@
                     v-model="formData.graphite_other_params"
                     accept=".pdf,.jpg,.png"
                     :max-size="10"
+                  />
+                </el-form-item>
+
+                <!-- ✅ 新增：石墨化补充说明 -->
+                <el-form-item label="石墨化补充说明" prop="graphite_notes">
+                  <el-input
+                    v-model="formData.graphite_notes"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入石墨化补充说明（非必填）"
+                    maxlength="500"
+                    show-word-limit
                   />
                 </el-form-item>
               </div>
@@ -629,6 +688,18 @@
                     :min="0"
                     :precision="3"
                     controls-position="right"
+                  />
+                </el-form-item>
+
+                <!-- ✅ 新增：压延补充说明 -->
+                <el-form-item label="压延补充说明" prop="rolling_notes">
+                  <el-input
+                    v-model="formData.rolling_notes"
+                    type="textarea"
+                    :rows="3"
+                    placeholder="请输入压延补充说明（非必填）"
+                    maxlength="500"
+                    show-word-limit
                   />
                 </el-form-item>
               </div>
@@ -693,26 +764,46 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="内聚力(gf)" prop="cohesion" required>
+                <!-- ✅ 修改：内聚力 - 改为非必填 -->
+                <el-form-item label="内聚力(gf)" prop="cohesion">
                   <el-input-number
                     v-model="formData.cohesion"
                     :min="0"
                     :precision="2"
-                    controls-position="right"
+                    placeholder="请输入内聚力（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
-                <el-form-item label="剥离力(gf)" prop="peel_strength" required>
+                <!-- ✅ 修改：剥离力 - 改为非必填 -->
+                <el-form-item label="剥离力(gf)" prop="peel_strength">
                   <el-input-number
                     v-model="formData.peel_strength"
                     :min="0"
                     :precision="2"
-                    controls-position="right"
+                    placeholder="请输入剥离力（非必填）"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
-                <el-form-item label="粗糙度" prop="roughness" required>
-                  <el-input v-model="formData.roughness" placeholder="请输入粗糙度" />
+                <!-- ✅ 修改：粗糙度 - 改为非必填 -->
+                <el-form-item label="粗糙度" prop="roughness">
+                  <el-input
+                    v-model="formData.roughness"
+                    placeholder="请输入粗糙度（非必填）"
+                  />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
+                </el-form-item>
+
+                <!-- ✅ 新增：结合力 -->
+                <el-form-item label="结合力" prop="bond_strength">
+                  <el-input-number
+                    v-model="formData.bond_strength"
+                    :min="0"
+                    :precision="2"
+                    placeholder="请输入结合力（非必填）"
+                  />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <el-form-item label="外观及不良情况描述" prop="appearance_description" required>
@@ -851,6 +942,9 @@ const formData = reactive({
   pi_width: null,
   batch_number: '',
   pi_weight: null,
+  // ✅ 新增字段
+  firing_rolls: null,        // 烧制卷数
+  pi_notes: '',              // PI膜补充说明
 
   // 3. 松卷参数
   core_tube_type: '',
@@ -879,6 +973,8 @@ const formData = reactive({
   carbon_loading_photo: null,
   carbon_sample_photo: null,
   carbon_other_params: null,
+  // ✅ 新增字段
+  carbon_notes: '',          // 碳化补充说明
 
   // 5. 石墨化参数
   graphite_furnace_num: '',
@@ -910,12 +1006,15 @@ const formData = reactive({
   graphite_loading_photo: null,
   graphite_sample_photo: null,
   graphite_other_params: null,
+  // ✅ 新增字段
+  graphite_notes: '',        // 石墨化补充说明
 
   // 6. 压延参数
   rolling_machine_num: '',
   rolling_pressure: null,
   rolling_tension: null,
   rolling_speed: null,
+  rolling_notes: '',         // 压延补充说明
 
   // 7. 成品参数
   product_code: '',
@@ -933,7 +1032,8 @@ const formData = reactive({
   remarks: '',
   defect_photo: null,
   sample_photo: null,
-  other_files: null
+  other_files: null,
+  bond_strength: null,       // 结合力
 })
 
 // 下拉选项数据
@@ -978,20 +1078,41 @@ const formRules = {
   carbon_furnace_num: [{ required: true, message: '碳化炉编号不能为空', trigger: 'blur' }],
   carbon_batch_num: [{ required: true, message: '碳化炉次不能为空', trigger: 'change' }],
   carbon_max_temp: [{ required: true, message: '碳化最高温度不能为空', trigger: 'change' }],
-  carbon_film_thickness: [{ required: true, message: '碳化膜厚度不能为空', trigger: 'change' }],
   carbon_total_time: [{ required: true, message: '碳化总时长不能为空', trigger: 'change' }],
-  carbon_weight: [{ required: true, message: '碳化后重量不能为空', trigger: 'change' }],
-  carbon_yield_rate: [{ required: true, message: '成碳率不能为空', trigger: 'change' }],
+
+  // ✅ 改为非必填 - 碳化膜厚度
+  carbon_film_thickness: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
+  // ✅ 改为非必填 - 碳化后重量
+  carbon_weight: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
+  // ✅ 改为非必填 - 成碳率
+  carbon_yield_rate: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
 
   graphite_furnace_num: [{ required: true, message: '石墨炉编号不能为空', trigger: 'blur' }],
-  pressure_value: [{ required: true, message: '气压值不能为空', trigger: 'change' }],
+
+  // ✅ 改为非必填 - 气压值
+  pressure_value: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
   graphite_max_temp: [{ required: true, message: '石墨化最高温度不能为空', trigger: 'change' }],
   foam_thickness: [{ required: true, message: '发泡厚度不能为空', trigger: 'change' }],
   graphite_width: [{ required: true, message: '石墨宽幅不能为空', trigger: 'change' }],
   shrinkage_ratio: [{ required: true, message: '收缩比不能为空', trigger: 'change' }],
   graphite_total_time: [{ required: true, message: '石墨化总时长不能为空', trigger: 'change' }],
   graphite_weight: [{ required: true, message: '石墨化后重量不能为空', trigger: 'change' }],
-  graphite_yield_rate: [{ required: true, message: '成碳率不能为空', trigger: 'change' }],
+
+  // ✅ 改为非必填 - 石墨化成碳率
+  graphite_yield_rate: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
 
   product_avg_thickness: [{ required: true, message: '样品平均厚度不能为空', trigger: 'change' }],
   product_spec: [{ required: true, message: '规格不能为空', trigger: 'blur' }],
@@ -999,11 +1120,42 @@ const formRules = {
   thermal_diffusivity: [{ required: true, message: '热扩散系数不能为空', trigger: 'change' }],
   thermal_conductivity: [{ required: true, message: '导热系数不能为空', trigger: 'change' }],
   specific_heat: [{ required: true, message: '比热不能为空', trigger: 'change' }],
-  cohesion: [{ required: true, message: '内聚力不能为空', trigger: 'change' }],
-  peel_strength: [{ required: true, message: '剥离力不能为空', trigger: 'change' }],
-  roughness: [{ required: true, message: '粗糙度不能为空', trigger: 'blur' }],
+
+  // ✅ 改为非必填 - 内聚力
+  cohesion: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
+  // ✅ 改为非必填 - 剥离力
+  peel_strength: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
+  // ✅ 改为非必填 - 粗糙度
+  roughness: [],
+
   appearance_description: [{ required: true, message: '外观描述不能为空', trigger: 'blur' }],
-  experiment_summary: [{ required: true, message: '实验总结不能为空', trigger: 'blur' }]
+  experiment_summary: [{ required: true, message: '实验总结不能为空', trigger: 'blur' }],
+
+  // ✅ 新增字段的验证规则（非必填）
+  firing_rolls: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+  pi_notes: [
+    { max: 500, message: '最多500个字符', trigger: 'blur' }
+  ],
+  carbon_notes: [
+    { max: 500, message: '最多500个字符', trigger: 'blur' }
+  ],
+  graphite_notes: [
+    { max: 500, message: '最多500个字符', trigger: 'blur' }
+  ],
+  rolling_notes: [
+    { max: 500, message: '最多500个字符', trigger: 'blur' }
+  ],
+  bond_strength: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ]
 }
 
 // ✅ 保留：监听关键字段变化,自动生成实验编码
@@ -1345,6 +1497,8 @@ function prepareSubmitData() {
     pi_width: formData.pi_width,
     batch_number: formData.batch_number,
     pi_weight: formData.pi_weight,
+    firing_rolls: formData.firing_rolls,
+    pi_notes: formData.pi_notes,
 
     // 松卷参数
     core_tube_type: formData.core_tube_type,
@@ -1373,6 +1527,7 @@ function prepareSubmitData() {
     carbon_loading_photo: formData.carbon_loading_photo,
     carbon_sample_photo: formData.carbon_sample_photo,
     carbon_other_params: formData.carbon_other_params,
+    carbon_notes: formData.carbon_notes,
 
     // 石墨化参数
     graphite_furnace_num: formData.graphite_furnace_num,
@@ -1404,12 +1559,14 @@ function prepareSubmitData() {
     graphite_loading_photo: formData.graphite_loading_photo,
     graphite_sample_photo: formData.graphite_sample_photo,
     graphite_other_params: formData.graphite_other_params,
+    graphite_notes: formData.graphite_notes,
 
     // 压延参数
     rolling_machine_num: formData.rolling_machine_num,
     rolling_pressure: formData.rolling_pressure,
     rolling_tension: formData.rolling_tension,
     rolling_speed: formData.rolling_speed,
+    rolling_notes: formData.rolling_notes,
 
     // 产品参数
     product_code: formData.product_code,
@@ -1428,6 +1585,7 @@ function prepareSubmitData() {
     defect_photo: formData.defect_photo,
     sample_photo: formData.sample_photo,
     other_files: formData.other_files,
+    bond_strength: formData.bond_strength,
 
     // 备注
     notes: formData.notes || ''
