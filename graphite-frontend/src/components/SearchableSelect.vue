@@ -10,6 +10,7 @@
       :loading="loading"
       @change="handleChange"
       @clear="handleClear"
+      @focus="handleFocus"
     >
       <el-option
         v-for="option in filteredOptions"
@@ -98,6 +99,8 @@ watch(selectedValue, (newValue) => {
 async function handleSearch(keyword: string) {
   searchKeyword.value = keyword
 
+  console.log('🔍 SearchableSelect: 搜索触发', { keyword, length: keyword.length })
+
   if (keyword.length >= 2) {
     loading.value = true
     try {
@@ -108,6 +111,11 @@ async function handleSearch(keyword: string) {
         loading.value = false
       }, 300)
     }
+  } else if (keyword.length === 0) {
+    // ✅ 修复：当搜索关键词为空时，也触发搜索事件
+    // 这样父组件可以重新加载完整的选项列表
+    console.log('🔄 SearchableSelect: 关键词为空，请求重新加载完整列表')
+    emit('search', '')
   }
 }
 
@@ -116,10 +124,29 @@ function handleChange(value: string | number | null) {
   emit('change', value)
 }
 
-// 处理清空
+// ✅ 修复：处理清空
 function handleClear() {
+  console.log('🧹 SearchableSelect: 清空选项')
   searchKeyword.value = ''
+
+  // ✅ 关键修复：触发搜索空字符串，让父组件重新加载完整列表
+  emit('search', '')
   emit('change', null)
+}
+
+// ✅ 新增：处理获得焦点
+function handleFocus() {
+  console.log('👀 SearchableSelect: 获得焦点', {
+    hasValue: !!selectedValue.value,
+    optionsCount: props.options.length,
+    keyword: searchKeyword.value
+  })
+
+  // 如果没有选中值且选项列表为空，重新加载
+  if (!selectedValue.value && props.options.length === 0) {
+    console.log('🔄 SearchableSelect: 选项为空，重新加载')
+    emit('search', '')
+  }
 }
 
 // 处理新增选项

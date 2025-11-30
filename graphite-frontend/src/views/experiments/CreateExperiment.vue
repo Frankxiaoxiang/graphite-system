@@ -1423,13 +1423,29 @@ async function loadDropdownOptions() {
 
 // ✅ 保留：处理搜索
 async function handleSearch(fieldName: string, keyword: string) {
-  if (keyword.length < 2) return
+  console.log('🔍 handleSearch 被调用:', { fieldName, keyword, length: keyword.length })
 
   try {
-    const options = await dropdownApi.searchOptions(fieldName, keyword)
-    dropdownOptions[fieldName] = options
+    if (keyword === '') {
+      // ✅ 关键修复：空关键词时重新加载完整列表
+      console.log('🔄 关键词为空，重新加载完整列表')
+      const options = await dropdownApi.getOptions(fieldName)
+      dropdownOptions[fieldName] = options
+      console.log('✅ 加载完整列表成功:', options.length, '个选项')
+    } else if (keyword.length < 2) {
+      // 关键词长度为1时，不做任何操作
+      console.log('⏸️ 关键词太短，等待用户继续输入')
+      return
+    } else {
+      // 关键词长度 >= 2 时，执行搜索
+      console.log('🔍 执行搜索:', keyword)
+      const options = await dropdownApi.searchOptions(fieldName, keyword)
+      dropdownOptions[fieldName] = options
+      console.log('✅ 搜索成功:', options.length, '个结果')
+    }
   } catch (error) {
-    console.error('搜索失败:', error)
+    console.error('❌ 搜索失败:', error)
+    ElMessage.error('搜索失败')
   }
 }
 

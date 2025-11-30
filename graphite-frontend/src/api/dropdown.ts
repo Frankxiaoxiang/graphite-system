@@ -68,7 +68,7 @@ class DropdownApi {
       const response = await request.get(`/dropdown/search/${fieldName}`, {
         params: { keyword, limit }
       })
-      return response.data || []
+      return response || []
     } catch (error) {
       console.error('搜索选项失败:', error)
       // 返回过滤后的模拟数据

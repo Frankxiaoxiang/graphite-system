@@ -5,6 +5,7 @@
 # - Removed permission checks (all users can add to searchable fields)
 # - Removed approval workflow
 # - Simplified API responses
+# - ✅ FIXED: Added /search/<field_name> endpoint with CORS support
 # ========================================
 
 from flask import Blueprint, request, jsonify
@@ -59,6 +60,71 @@ def get_dropdown_options_by_path(field_name):
     except Exception as e:
         print(f"Error getting options: {str(e)}")
         return jsonify({'error': 'Failed to get options', 'message': str(e)}), 500
+
+
+# ✅ 新增：搜索API端点（修复CORS问题）
+@dropdown_bp.route('/search/<string:field_name>', methods=['GET', 'OPTIONS'])
+@jwt_required(optional=True)  # OPTIONS请求时不需要JWT
+def search_dropdown_options(field_name):
+    """
+    Search dropdown options by keyword
+    支持模糊查询，用于前端的搜索下拉框
+    
+    Query Parameters:
+    - keyword: 搜索关键词
+    - limit: 返回结果数量限制（默认20）
+    """
+    # 🔧 处理 OPTIONS 预检请求
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    # 🔧 GET 请求 - 搜索逻辑
+    try:
+        keyword = request.args.get('keyword', '').strip()
+        limit = request.args.get('limit', 20, type=int)
+        
+        print(f"🔍 搜索请求: field={field_name}, keyword={keyword}, limit={limit}")
+        
+        # 如果没有关键词，返回空列表
+        if not keyword:
+            return jsonify([]), 200
+        
+        # 构建查询
+        query = DropdownOption.query.filter_by(
+            field_name=field_name,
+            is_active=True
+        )
+        
+        # 模糊查询（不区分大小写）
+        query = query.filter(
+            db.or_(
+                DropdownOption.option_value.ilike(f'%{keyword}%'),
+                DropdownOption.option_label.ilike(f'%{keyword}%')
+            )
+        )
+        
+        # 排序并限制数量
+        options = query.order_by(
+            DropdownOption.sort_order.asc(),
+            DropdownOption.option_value.asc()
+        ).limit(limit).all()
+        
+        # 格式化结果
+        result = [{
+            'value': option.option_value,
+            'label': option.option_label or option.option_value,
+            'sort_order': option.sort_order
+        } for option in options]
+        
+        print(f"✅ 搜索成功: 找到 {len(result)} 个结果")
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        print(f"❌ 搜索失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': '搜索失败', 'message': str(e)}), 500
 
 
 @dropdown_bp.route('/options', methods=['GET'])
@@ -274,10 +340,11 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'ok',
-        'version': 'Phase 4A - Simplified',
+        'version': 'Phase 4A - Simplified + Search API Fix',
         'features': {
             'approval_workflow': False,
             'permission_checks': False,
-            'all_users_can_add_searchable': True
+            'all_users_can_add_searchable': True,
+            'search_api': True  # ✅ 新增
         }
     }), 200
