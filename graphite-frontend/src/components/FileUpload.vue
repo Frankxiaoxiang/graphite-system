@@ -5,6 +5,7 @@
       class="upload-component"
       :action="uploadUrl"
       :headers="uploadHeaders"
+      :data="uploadData"
       :accept="accept"
       :multiple="false"
       :show-file-list="false"
@@ -18,7 +19,7 @@
           {{ uploading ? '上传中...' : '选择文件' }}
         </el-button>
       </template>
-      
+
       <template #tip>
         <div class="upload-tip">
           支持格式: {{ acceptText }}, 最大{{ maxSize }}MB
@@ -46,29 +47,29 @@
             </div>
           </div>
         </div>
-        
+
         <div class="file-actions">
-          <el-button 
-            type="primary" 
-            size="small" 
-            text 
+          <el-button
+            type="primary"
+            size="small"
+            text
             @click="previewFile"
             v-if="canPreview"
           >
             预览
           </el-button>
-          <el-button 
-            type="primary" 
-            size="small" 
-            text 
+          <el-button
+            type="primary"
+            size="small"
+            text
             @click="downloadFile"
           >
             下载
           </el-button>
-          <el-button 
-            type="danger" 
-            size="small" 
-            text 
+          <el-button
+            type="danger"
+            size="small"
+            text
             @click="removeFile"
           >
             删除
@@ -78,10 +79,10 @@
     </div>
 
     <!-- 图片预览对话框 -->
-    <el-dialog 
-      v-model="previewVisible" 
-      title="图片预览" 
-      width="60%" 
+    <el-dialog
+      v-model="previewVisible"
+      title="图片预览"
+      width="60%"
       :center="true"
     >
       <div class="preview-container">
@@ -110,6 +111,8 @@ interface Props {
   modelValue: FileInfo | null
   accept?: string
   maxSize?: number // MB
+  experimentId?: string | number  // ✅ 新增
+  fieldName?: string              // ✅ 新增
 }
 
 interface Emits {
@@ -118,7 +121,9 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   accept: 'image/*',
-  maxSize: 10
+  maxSize: 10,
+  experimentId: '',     // ✅ 新增默认值
+  fieldName: ''         // ✅ 新增默认值
 })
 
 const emit = defineEmits<Emits>()
@@ -131,10 +136,20 @@ const fileInfo = ref<FileInfo | null>(props.modelValue)
 const previewVisible = ref(false)
 const previewUrl = ref('')
 
-// 上传地址和请求头
-const uploadUrl = computed(() => `${import.meta.env.VITE_API_BASE_URL}/api/upload`)
+// ✅ 修复上传URL
+const uploadUrl = computed(() => {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+  return `${baseUrl}/api/files/upload`
+})
+
 const uploadHeaders = computed(() => ({
   'Authorization': `Bearer ${authStore.token}`
+}))
+
+// ✅ 上传时附带的额外数据
+const uploadData = computed(() => ({
+  experiment_id: props.experimentId || '',
+  field_name: props.fieldName || ''
 }))
 
 // 接受的文件类型文本
@@ -145,13 +160,13 @@ const acceptText = computed(() => {
     '.doc,.docx': 'Word文档',
     '.xls,.xlsx': 'Excel表格'
   }
-  
+
   for (const [key, value] of Object.entries(acceptMap)) {
     if (props.accept.includes(key)) {
       return value
     }
   }
-  
+
   return props.accept
 })
 
@@ -205,9 +220,9 @@ function beforeUpload(file: File) {
         return file.type === type
       }
     })
-    
+
     if (!isValidType) {
-      ElMessage.error(`不支持的文件类型，请上传 ${acceptText.value} 格式的文件`)
+      ElMessage.error(`不支持的文件类型,请上传 ${acceptText.value} 格式的文件`)
       return false
     }
   }
@@ -222,33 +237,49 @@ function handleProgress(event: any) {
   uploadProgress.value = Math.round(event.percent)
 }
 
-// 上传成功
+// ✅ 处理后端返回的响应
 function handleSuccess(response: any) {
   uploading.value = false
   uploadProgress.value = 100
-  
-  if (response.success) {
+
+  console.log('✅ 上传响应:', response)
+
+  // 后端返回格式: { message, file_id, filename, file_path, file_size }
+  if (response.file_id) {
+    const baseUrl = import.meta.env.VITE_FILE_BASE_URL || 'http://localhost:5000'
+
     fileInfo.value = {
-      id: response.data.id,
-      name: response.data.originalName,
-      url: response.data.url,
-      size: response.data.size,
+      id: response.file_id.toString(),
+      name: response.filename,
+      url: `${baseUrl}${response.file_url}`,  // ✅ 使用file_url而非file_path
+      size: response.file_size,
       uploadTime: new Date().toISOString(),
-      type: response.data.mimeType
+      type: response.filename.split('.').pop() || 'unknown'
     }
-    
-    ElMessage.success('文件上传成功')
+
+    ElMessage.success(response.message || '文件上传成功')
   } else {
-    ElMessage.error(response.message || '上传失败')
+    ElMessage.error('上传失败:响应格式错误')
+    console.error('意外的响应格式:', response)
   }
 }
 
-// 上传失败
+// ✅ 优化错误处理
 function handleError(error: any) {
   uploading.value = false
   uploadProgress.value = 0
-  console.error('上传失败:', error)
-  ElMessage.error('文件上传失败')
+
+  console.error('❌ 上传失败:', error)
+
+  let errorMessage = '文件上传失败'
+
+  if (error.response?.data?.error) {
+    errorMessage = error.response.data.error
+  } else if (error.message) {
+    errorMessage = error.message
+  }
+
+  ElMessage.error(errorMessage)
 }
 
 // 预览文件
@@ -275,12 +306,12 @@ function downloadFile() {
 // 删除文件
 async function removeFile() {
   try {
-    await ElMessageBox.confirm('确认删除此文件吗？', '确认删除', {
+    await ElMessageBox.confirm('确认删除此文件吗?', '确认删除', {
       confirmButtonText: '确认',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    
+
     fileInfo.value = null
     ElMessage.success('文件已删除')
   } catch {
@@ -395,7 +426,7 @@ function formatDate(dateString: string): string {
     align-items: stretch;
     gap: 12px;
   }
-  
+
   .file-actions {
     justify-content: center;
   }

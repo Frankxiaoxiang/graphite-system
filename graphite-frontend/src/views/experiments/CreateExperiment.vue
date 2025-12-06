@@ -428,6 +428,8 @@
                     v-model="formData.carbon_loading_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="carbon_loading_photo"
                   />
                 </el-form-item>
 
@@ -436,14 +438,18 @@
                     v-model="formData.carbon_sample_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="carbon_sample_photo"
                   />
                 </el-form-item>
 
                 <el-form-item label="碳化其它参数" prop="carbon_other_params">
                   <FileUpload
                     v-model="formData.carbon_other_params"
-                    accept=".pdf,.jpg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="carbon_other_params"
                   />
                 </el-form-item>
 
@@ -621,6 +627,8 @@
                     v-model="formData.graphite_loading_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="graphite_loading_photo"
                   />
                 </el-form-item>
 
@@ -629,14 +637,18 @@
                     v-model="formData.graphite_sample_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="graphite_sample_photo"
                   />
                 </el-form-item>
 
                 <el-form-item label="石墨化其它参数" prop="graphite_other_params">
                   <FileUpload
                     v-model="formData.graphite_other_params"
-                    accept=".pdf,.jpg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="graphite_other_params"
                   />
                 </el-form-item>
 
@@ -839,6 +851,8 @@
                     v-model="formData.defect_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="appearance_defect_photo"
                   />
                 </el-form-item>
 
@@ -847,14 +861,18 @@
                     v-model="formData.sample_photo"
                     accept="image/*"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="sample_photo"
                   />
                 </el-form-item>
 
                 <el-form-item label="其它文件" prop="other_files">
                   <FileUpload
                     v-model="formData.other_files"
-                    accept=".pdf,.jpg,.png,.doc,.docx,.xls,.xlsx"
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx"
                     :max-size="10"
+                    :experiment-id="formData.experiment_code || 'temp'"
+                    field-name="other_files"
                   />
                 </el-form-item>
               </div>
@@ -1179,6 +1197,9 @@ async function loadDraftData(expId: number) {
   try {
     console.log('📖 加载草稿数据，ID:', expId)
 
+    // ✅ 定义API基础URL（用于文件URL转换）
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+
     // 调用API获取实验详情
     const response = await experimentApi.getExperiment(expId)
     const data = response.experiment
@@ -1239,9 +1260,41 @@ async function loadDraftData(expId: number) {
       formData.carbon_total_time = data.carbon.carbon_total_time
       formData.carbon_weight = data.carbon.carbon_after_weight
       formData.carbon_yield_rate = data.carbon.carbon_yield_rate
-      formData.carbon_loading_photo = data.carbon.carbon_loading_photo
-      formData.carbon_sample_photo = data.carbon.carbon_sample_photo
-      formData.carbon_other_params = data.carbon.carbon_other_params
+      
+      // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
+      // 注意：需要将相对路径转换为完整URL
+      if (data.carbon.carbon_loading_photo) {
+        formData.carbon_loading_photo = {
+          id: String(data.carbon.carbon_loading_photo.file_id),
+          name: data.carbon.carbon_loading_photo.filename,
+          url: `${baseURL}${data.carbon.carbon_loading_photo.file_url}`,  // ← 完整URL
+          size: data.carbon.carbon_loading_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.carbon.carbon_loading_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.carbon.carbon_sample_photo) {
+        formData.carbon_sample_photo = {
+          id: String(data.carbon.carbon_sample_photo.file_id),
+          name: data.carbon.carbon_sample_photo.filename,
+          url: `${baseURL}${data.carbon.carbon_sample_photo.file_url}`,  // ← 完整URL
+          size: data.carbon.carbon_sample_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.carbon.carbon_sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.carbon.carbon_other_params) {
+        formData.carbon_other_params = {
+          id: String(data.carbon.carbon_other_params.file_id),
+          name: data.carbon.carbon_other_params.filename,
+          url: `${baseURL}${data.carbon.carbon_other_params.file_url}`,  // ← 完整URL
+          size: data.carbon.carbon_other_params.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.carbon.carbon_other_params.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
     }
 
     // 5. 填充石墨化参数
@@ -1275,9 +1328,41 @@ async function loadDraftData(expId: number) {
       formData.graphite_weight = data.graphite.graphite_after_weight
       formData.graphite_yield_rate = data.graphite.graphite_yield_rate
       formData.graphite_min_thickness = data.graphite.graphite_min_thickness
-      formData.graphite_loading_photo = data.graphite.graphite_loading_photo
-      formData.graphite_sample_photo = data.graphite.graphite_sample_photo
-      formData.graphite_other_params = data.graphite.graphite_other_params
+      
+      // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
+      // 注意：需要将相对路径转换为完整URL
+      if (data.graphite.graphite_loading_photo) {
+        formData.graphite_loading_photo = {
+          id: String(data.graphite.graphite_loading_photo.file_id),
+          name: data.graphite.graphite_loading_photo.filename,
+          url: `${baseURL}${data.graphite.graphite_loading_photo.file_url}`,  // ← 完整URL
+          size: data.graphite.graphite_loading_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.graphite.graphite_loading_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.graphite.graphite_sample_photo) {
+        formData.graphite_sample_photo = {
+          id: String(data.graphite.graphite_sample_photo.file_id),
+          name: data.graphite.graphite_sample_photo.filename,
+          url: `${baseURL}${data.graphite.graphite_sample_photo.file_url}`,  // ← 完整URL
+          size: data.graphite.graphite_sample_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.graphite.graphite_sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.graphite.graphite_other_params) {
+        formData.graphite_other_params = {
+          id: String(data.graphite.graphite_other_params.file_id),
+          name: data.graphite.graphite_other_params.filename,
+          url: `${baseURL}${data.graphite.graphite_other_params.file_url}`,  // ← 完整URL
+          size: data.graphite.graphite_other_params.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.graphite.graphite_other_params.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
     }
 
     // 6. 填充压延参数
@@ -1303,9 +1388,41 @@ async function loadDraftData(expId: number) {
       formData.appearance_description = data.product.appearance_desc
       formData.experiment_summary = data.product.experiment_summary
       formData.remarks = data.product.remarks
-      formData.defect_photo = data.product.appearance_defect_photo
-      formData.sample_photo = data.product.sample_photo
-      formData.other_files = data.product.other_files
+      
+      // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
+      // 注意：需要将相对路径转换为完整URL
+      if (data.product.appearance_defect_photo) {
+        formData.defect_photo = {
+          id: String(data.product.appearance_defect_photo.file_id),
+          name: data.product.appearance_defect_photo.filename,
+          url: `${baseURL}${data.product.appearance_defect_photo.file_url}`,  // ← 完整URL
+          size: data.product.appearance_defect_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.product.appearance_defect_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.product.sample_photo) {
+        formData.sample_photo = {
+          id: String(data.product.sample_photo.file_id),
+          name: data.product.sample_photo.filename,
+          url: `${baseURL}${data.product.sample_photo.file_url}`,  // ← 完整URL
+          size: data.product.sample_photo.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.product.sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
+      
+      if (data.product.other_files) {
+        formData.other_files = {
+          id: String(data.product.other_files.file_id),
+          name: data.product.other_files.filename,
+          url: `${baseURL}${data.product.other_files.file_url}`,  // ← 完整URL
+          size: data.product.other_files.file_size,
+          uploadTime: new Date().toISOString(),
+          type: data.product.other_files.filename.split('.').pop()?.toLowerCase() || 'unknown'
+        }
+      }
     }
 
     // ✅ 关键修复：设置实验ID和编码（用于后续更新）

@@ -7,6 +7,7 @@ from app.models.experiment import (
     ExperimentCarbon, ExperimentGraphite, ExperimentRolling, ExperimentProduct
 )
 from app.models.system_log import SystemLog
+from app.models.file_upload import FileUpload  # ✅ 新增
 from app.utils.experiment_code import generate_experiment_code, validate_experiment_code_format
 from app.utils.permissions import require_permission
 from datetime import datetime
@@ -15,6 +16,41 @@ import io
 import traceback
 
 experiments_bp = Blueprint('experiments', __name__)
+
+# ==========================================
+# 🔗 文件关联辅助函数
+# ==========================================
+def associate_temp_files(experiment_id, user_id):
+    """
+    将用户上传的临时文件关联到实验
+    
+    Args:
+        experiment_id: 实验ID
+        user_id: 用户ID
+    """
+    try:
+        # 查找该用户所有未关联的临时文件
+        temp_files = FileUpload.query.filter_by(
+            experiment_id=None,
+            uploaded_by=user_id
+        ).all()
+        
+        if temp_files:
+            print(f"🔗 找到 {len(temp_files)} 个临时文件，准备关联到实验 {experiment_id}")
+            
+            # 更新文件的experiment_id
+            for file in temp_files:
+                print(f"   - {file.original_filename} (ID: {file.id})")
+                file.experiment_id = experiment_id
+            
+            db.session.commit()
+            print(f"✅ 成功关联 {len(temp_files)} 个文件")
+        else:
+            print(f"ℹ️  没有找到需要关联的临时文件")
+            
+    except Exception as e:
+        print(f"❌ 文件关联失败: {str(e)}")
+        # 不抛出异常，避免影响草稿保存
 
 # ==========================================
 # 🆕 新增：草稿保存 API - 手动控制验证
@@ -145,6 +181,9 @@ def save_draft():
         _save_optional_modules(experiment.id, data)
         
         db.session.commit()
+        
+        # ✅ 新增：关联临时文件
+        associate_temp_files(experiment.id, current_user_id)
         
         print(f"✅ 草稿保存成功！")
         print(f"   - 实验 ID: {experiment.id}")
@@ -313,6 +352,12 @@ def update_draft(experiment_id):
         
         # 保存其他可选模块数据
         _save_optional_modules(experiment.id, data)
+        
+        # ✅ 新增：提交更改
+        db.session.commit()
+        
+        # ✅ 新增：关联临时文件
+        associate_temp_files(experiment.id, current_user_id)
         
         # 8. 记录操作日志
         SystemLog.log_action(
@@ -669,10 +714,14 @@ def get_experiments():
         print("="*60 + "\n")
         return jsonify({'error': f'获取实验列表失败: {str(e)}'}), 500
 
+# ==========================================
+# 修复后的 get_experiment 函数（最终版）
+# 替换 experiments.py 第720行开始的函数
+# ==========================================
 
 @experiments_bp.route('/<int:experiment_id>', methods=['GET'])
 def get_experiment(experiment_id):
-    """获取实验详情"""
+    """获取实验详情（包含文件信息）"""
     try:
         # ✅ 手动验证JWT
         auth_header = request.headers.get('Authorization')
@@ -691,11 +740,34 @@ def get_experiment(experiment_id):
         if user.role == 'user' and experiment.created_by != current_user_id:
             return jsonify({'error': '无权访问此实验'}), 403
         
+        # ✅ 新增：查询该实验的所有文件
+        files = FileUpload.query.filter_by(experiment_id=experiment_id).all()
+        
+        # ✅ 新增：将文件信息按字段名组织成字典
+        file_dict = {}
+        for file in files:
+            # 构建访问URL：从 file_path 转换为 URL
+            # file_path 格式：2025/12/temp/xxx.jpg
+            # URL 格式：/api/files/2025/12/temp/xxx.jpg
+            file_url = f"/api/files/{file.file_path}"
+            
+            file_dict[file.field_name] = {
+                'file_id': file.id,
+                'file_url': file_url,
+                'filename': file.original_filename,
+                'file_size': file.file_size
+            }
+        
+        # 打印调试信息
+        print(f"📂 实验 {experiment_id} 找到 {len(files)} 个文件")
+        for field_name, file_info in file_dict.items():
+            print(f"   - {field_name}: {file_info['filename']}")
+        
         # 构建完整的实验数据
         experiment_data = experiment.to_dict()
         experiment_data['creator_name'] = experiment.creator.real_name or experiment.creator.username
         
-        # 添加各模块数据
+        # 1. 基本参数
         if experiment.basic:
             experiment_data['basic'] = {
                 'pi_film_thickness': float(experiment.basic.pi_film_thickness) if experiment.basic.pi_film_thickness else None,
@@ -710,6 +782,7 @@ def get_experiment(experiment_id):
                 'experiment_purpose': experiment.basic.experiment_purpose
             }
         
+        # 2. PI膜参数
         if experiment.pi:
             experiment_data['pi'] = {
                 'pi_manufacturer': experiment.pi.pi_manufacturer,
@@ -720,7 +793,7 @@ def get_experiment(experiment_id):
                 'pi_weight': float(experiment.pi.pi_weight) if experiment.pi.pi_weight else None
             }
         
-# 3. 松卷参数
+        # 3. 松卷参数
         if experiment.loose:
             experiment_data['loose'] = {
                 'core_tube_type': experiment.loose.core_tube_type,
@@ -731,7 +804,7 @@ def get_experiment(experiment_id):
         
         # 4. 碳化参数
         if experiment.carbon:
-            experiment_data['carbon'] = {
+            carbon_data = {
                 'carbon_furnace_number': experiment.carbon.carbon_furnace_number,
                 'carbon_furnace_batch': experiment.carbon.carbon_furnace_batch,
                 'boat_model': experiment.carbon.boat_model,
@@ -741,7 +814,7 @@ def get_experiment(experiment_id):
                 'start_time': experiment.carbon.start_time.isoformat() if experiment.carbon.start_time else None,
                 'end_time': experiment.carbon.end_time.isoformat() if experiment.carbon.end_time else None,
                 
-                # ✅ 新增：碳化温度/厚度字段
+                # 碳化温度/厚度字段
                 'carbon_temp1': experiment.carbon.carbon_temp1,
                 'carbon_thickness1': float(experiment.carbon.carbon_thickness1) if experiment.carbon.carbon_thickness1 else None,
                 'carbon_temp2': experiment.carbon.carbon_temp2,
@@ -752,14 +825,19 @@ def get_experiment(experiment_id):
                 'carbon_film_thickness': float(experiment.carbon.carbon_film_thickness) if experiment.carbon.carbon_film_thickness else None,
                 'carbon_after_weight': float(experiment.carbon.carbon_after_weight) if experiment.carbon.carbon_after_weight else None,
                 'carbon_yield_rate': float(experiment.carbon.carbon_yield_rate) if experiment.carbon.carbon_yield_rate else None,
-                'carbon_loading_photo': experiment.carbon.carbon_loading_photo,
-                'carbon_sample_photo': experiment.carbon.carbon_sample_photo,
-                'carbon_other_params': experiment.carbon.carbon_other_params
+                'carbon_notes': experiment.carbon.carbon_notes
             }
+            
+            # ✅ 修复：返回完整文件对象而非URL字符串
+            carbon_data['carbon_loading_photo'] = file_dict.get('carbon_loading_photo')
+            carbon_data['carbon_sample_photo'] = file_dict.get('carbon_sample_photo')
+            carbon_data['carbon_other_params'] = file_dict.get('carbon_other_params')
+            
+            experiment_data['carbon'] = carbon_data
         
         # 5. 石墨化参数
         if experiment.graphite:
-            experiment_data['graphite'] = {
+            graphite_data = {
                 'graphite_furnace_number': experiment.graphite.graphite_furnace_number,
                 'graphite_furnace_batch': experiment.graphite.graphite_furnace_batch,
                 'graphite_start_time': experiment.graphite.graphite_start_time.isoformat() if experiment.graphite.graphite_start_time else None,
@@ -767,7 +845,7 @@ def get_experiment(experiment_id):
                 'gas_pressure': float(experiment.graphite.gas_pressure) if experiment.graphite.gas_pressure else None,
                 'graphite_power': float(experiment.graphite.graphite_power) if experiment.graphite.graphite_power else None,
                 
-                # ✅ 新增：石墨化温度/厚度字段
+                # 石墨化温度/厚度字段
                 'graphite_temp1': float(experiment.graphite.graphite_temp1) if experiment.graphite.graphite_temp1 else None,
                 'graphite_thickness1': float(experiment.graphite.graphite_thickness1) if experiment.graphite.graphite_thickness1 else None,
                 'graphite_temp2': float(experiment.graphite.graphite_temp2) if experiment.graphite.graphite_temp2 else None,
@@ -789,10 +867,15 @@ def get_experiment(experiment_id):
                 'graphite_after_weight': float(experiment.graphite.graphite_after_weight) if experiment.graphite.graphite_after_weight else None,
                 'graphite_yield_rate': float(experiment.graphite.graphite_yield_rate) if experiment.graphite.graphite_yield_rate else None,
                 'graphite_min_thickness': float(experiment.graphite.graphite_min_thickness) if experiment.graphite.graphite_min_thickness else None,
-                'graphite_loading_photo': experiment.graphite.graphite_loading_photo,
-                'graphite_sample_photo': experiment.graphite.graphite_sample_photo,
-                'graphite_other_params': experiment.graphite.graphite_other_params
+                'graphite_notes': experiment.graphite.graphite_notes
             }
+            
+            # ✅ 修复：返回完整文件对象而非URL字符串
+            graphite_data['graphite_loading_photo'] = file_dict.get('graphite_loading_photo')
+            graphite_data['graphite_sample_photo'] = file_dict.get('graphite_sample_photo')
+            graphite_data['graphite_other_params'] = file_dict.get('graphite_other_params')
+            
+            experiment_data['graphite'] = graphite_data
         
         # 6. 压延参数
         if experiment.rolling:
@@ -800,12 +883,13 @@ def get_experiment(experiment_id):
                 'rolling_machine': experiment.rolling.rolling_machine,
                 'rolling_pressure': float(experiment.rolling.rolling_pressure) if experiment.rolling.rolling_pressure else None,
                 'rolling_tension': float(experiment.rolling.rolling_tension) if experiment.rolling.rolling_tension else None,
-                'rolling_speed': float(experiment.rolling.rolling_speed) if experiment.rolling.rolling_speed else None
+                'rolling_speed': float(experiment.rolling.rolling_speed) if experiment.rolling.rolling_speed else None,
+                'rolling_notes': experiment.rolling.rolling_notes
             }
         
         # 7. 成品参数
         if experiment.product:
-            experiment_data['product'] = {
+            product_data = {
                 'product_code': experiment.product.product_code,
                 'avg_thickness': float(experiment.product.avg_thickness) if experiment.product.avg_thickness else None,
                 'specification': experiment.product.specification,
@@ -817,16 +901,25 @@ def get_experiment(experiment_id):
                 'peel_strength': float(experiment.product.peel_strength) if experiment.product.peel_strength else None,
                 'roughness': experiment.product.roughness,
                 'appearance_desc': experiment.product.appearance_desc,
-                'appearance_defect_photo': experiment.product.appearance_defect_photo,
-                'sample_photo': experiment.product.sample_photo,
                 'experiment_summary': experiment.product.experiment_summary,
-                'other_files': experiment.product.other_files,
-                'remarks': experiment.product.remarks
+                'remarks': experiment.product.remarks,
+                'bond_strength': float(experiment.product.bond_strength) if experiment.product.bond_strength else None
             }
+            
+           # ✅ 修复：返回完整文件对象而非URL字符串
+            product_data['appearance_defect_photo'] = file_dict.get('appearance_defect_photo')
+            product_data['xrd_pattern_photo'] = file_dict.get('xrd_pattern_photo')
+            product_data['sem_photo'] = file_dict.get('sem_photo')
+            product_data['product_other_params'] = file_dict.get('product_other_params')
+            
+            experiment_data['product'] = product_data
         
         return jsonify({'experiment': experiment_data}), 200
         
     except Exception as e:
+        print(f"❌ 获取实验详情失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': '获取实验详情失败'}), 500
 
 
@@ -1061,7 +1154,6 @@ def export_experiments():
         traceback.print_exc()
         return jsonify({'error': '导出失败'}), 500
 
-
 # ==========================================
 # 🆕 新增：辅助函数
 # ==========================================
@@ -1104,11 +1196,18 @@ def _validate_all_required_fields(data):
     }
 
 
+# ========================================
+# 修复 _save_optional_modules 函数
+# 位置: experiments.py 第1000-1234行左右
+# ========================================
+
 def _save_optional_modules(experiment_id, data):
-    """保存可选模块数据（草稿时使用）"""
+    """保存可选模块数据（草稿模式，只保存有数据的模块）"""
     
-    # PI膜参数
-    if any(data.get(f'pi_{key}') for key in ['manufacturer', 'thickness_detail', 'model_detail', 'width', 'batch_number', 'weight']):
+    # PI膜参数 - 只要有任意一个字段有值就保存
+    pi_fields = ['pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 
+                 'pi_width', 'batch_number', 'pi_weight', 'firing_rolls', 'pi_notes']
+    if any(data.get(field) for field in pi_fields):
         pi = ExperimentPi(
             experiment_id=experiment_id,
             pi_manufacturer=data.get('pi_manufacturer'),
@@ -1117,14 +1216,14 @@ def _save_optional_modules(experiment_id, data):
             pi_width=data.get('pi_width'),
             batch_number=data.get('batch_number'),
             pi_weight=data.get('pi_weight'),
-            # ✅ 新增字段
             firing_rolls=data.get('firing_rolls'),
             pi_notes=data.get('pi_notes')
         )
         db.session.add(pi)
     
-    # 松卷参数
-    if any(data.get(key) for key in ['core_tube_type', 'loose_gap_inner', 'loose_gap_middle', 'loose_gap_outer']):
+    # 松卷参数 - 只要有任意一个字段有值就保存
+    loose_fields = ['core_tube_type', 'loose_gap_inner', 'loose_gap_middle', 'loose_gap_outer']
+    if any(data.get(field) for field in loose_fields):
         loose = ExperimentLoose(
             experiment_id=experiment_id,
             core_tube_type=data.get('core_tube_type'),
@@ -1133,9 +1232,14 @@ def _save_optional_modules(experiment_id, data):
             loose_gap_outer=data.get('loose_gap_outer')
         )
         db.session.add(loose)
-        
-    # 碳化参数
-    if data.get('carbon_furnace_num'):
+    
+    # 碳化参数 - 只要有任意一个字段有值就保存
+    carbon_fields = ['carbon_furnace_num', 'carbon_batch_num', 'boat_model', 'wrap_type',
+                     'vacuum_degree', 'carbon_power', 'carbon_start_time', 'carbon_end_time',
+                     'carbon_temp1', 'carbon_thickness1', 'carbon_temp2', 'carbon_thickness2',
+                     'carbon_max_temp', 'carbon_film_thickness', 'carbon_total_time',
+                     'carbon_weight', 'carbon_yield_rate', 'carbon_notes']
+    if any(data.get(field) for field in carbon_fields):
         carbon = ExperimentCarbon(
             experiment_id=experiment_id,
             carbon_furnace_number=data.get('carbon_furnace_num'),
@@ -1146,13 +1250,10 @@ def _save_optional_modules(experiment_id, data):
             power_consumption=data.get('carbon_power'),
             start_time=_parse_datetime(data.get('carbon_start_time')),
             end_time=_parse_datetime(data.get('carbon_end_time')),
-            
-            # ✅ 新增：碳化温度/厚度字段
             carbon_temp1=data.get('carbon_temp1'),
             carbon_thickness1=data.get('carbon_thickness1'),
             carbon_temp2=data.get('carbon_temp2'),
             carbon_thickness2=data.get('carbon_thickness2'),
-            
             carbon_max_temp=data.get('carbon_max_temp'),
             carbon_film_thickness=data.get('carbon_film_thickness'),
             carbon_total_time=data.get('carbon_total_time'),
@@ -1161,9 +1262,17 @@ def _save_optional_modules(experiment_id, data):
             carbon_notes=data.get('carbon_notes')
         )
         db.session.add(carbon)
-        
-        # 石墨化参数
-    if data.get('graphite_furnace_num'):
+    
+    # 石墨化参数 - 只要有任意一个字段有值就保存
+    graphite_fields = ['graphite_furnace_num', 'graphite_batch_num', 'graphite_start_time',
+                       'graphite_end_time', 'pressure_value', 'graphite_power',
+                       'graphite_temp1', 'graphite_thickness1', 'graphite_temp2', 'graphite_thickness2',
+                       'graphite_temp3', 'graphite_thickness3', 'graphite_temp4', 'graphite_thickness4',
+                       'graphite_temp5', 'graphite_thickness5', 'graphite_temp6', 'graphite_thickness6',
+                       'graphite_max_temp', 'foam_thickness', 'graphite_width', 'shrinkage_ratio',
+                       'graphite_total_time', 'graphite_weight', 'graphite_yield_rate',
+                       'graphite_min_thickness', 'graphite_notes']
+    if any(data.get(field) for field in graphite_fields):
         graphite = ExperimentGraphite(
             experiment_id=experiment_id,
             graphite_furnace_number=data.get('graphite_furnace_num'),
@@ -1172,8 +1281,6 @@ def _save_optional_modules(experiment_id, data):
             graphite_end_time=_parse_datetime(data.get('graphite_end_time')),
             gas_pressure=data.get('pressure_value'),
             graphite_power=data.get('graphite_power'),
-            
-            # ✅ 新增：石墨化温度/厚度字段
             graphite_temp1=data.get('graphite_temp1'),
             graphite_thickness1=data.get('graphite_thickness1'),
             graphite_temp2=data.get('graphite_temp2'),
@@ -1186,9 +1293,8 @@ def _save_optional_modules(experiment_id, data):
             graphite_thickness5=data.get('graphite_thickness5'),
             graphite_temp6=data.get('graphite_temp6'),
             graphite_thickness6=data.get('graphite_thickness6'),
-            
-            foam_thickness=data.get('foam_thickness'),
             graphite_max_temp=data.get('graphite_max_temp'),
+            foam_thickness=data.get('foam_thickness'),
             graphite_width=data.get('graphite_width'),
             shrinkage_ratio=data.get('shrinkage_ratio'),
             graphite_total_time=data.get('graphite_total_time'),
@@ -1199,8 +1305,10 @@ def _save_optional_modules(experiment_id, data):
         )
         db.session.add(graphite)
     
-    # 压延参数
-    if data.get('rolling_machine_num'):
+    # 压延参数 - 只要有任意一个字段有值就保存
+    rolling_fields = ['rolling_machine_num', 'rolling_pressure', 'rolling_tension',
+                      'rolling_speed', 'rolling_notes']
+    if any(data.get(field) for field in rolling_fields):
         rolling = ExperimentRolling(
             experiment_id=experiment_id,
             rolling_machine=data.get('rolling_machine_num'),
@@ -1211,8 +1319,12 @@ def _save_optional_modules(experiment_id, data):
         )
         db.session.add(rolling)
     
-    # 产品参数
-    if data.get('product_avg_thickness'):
+    # 产品参数 - 只要有任意一个字段有值就保存
+    product_fields = ['product_code', 'product_avg_thickness', 'product_spec', 'product_avg_density',
+                      'thermal_diffusivity', 'thermal_conductivity', 'specific_heat',
+                      'cohesion', 'peel_strength', 'roughness', 'appearance_description',
+                      'experiment_summary', 'remarks', 'bond_strength']
+    if any(data.get(field) for field in product_fields):
         product = ExperimentProduct(
             experiment_id=experiment_id,
             product_code=data.get('product_code'),
@@ -1232,6 +1344,11 @@ def _save_optional_modules(experiment_id, data):
         )
         db.session.add(product)
 
+
+# ========================================
+# 修复 _save_all_modules 函数
+# 用于正式提交时保存所有模块
+# ========================================
 
 def _save_all_modules(experiment_id, data):
     """保存所有模块数据（正式提交时使用）"""
@@ -1276,95 +1393,94 @@ def _save_all_modules(experiment_id, data):
     )
     db.session.add(loose)
     
-# 4. 碳化参数
     # 4. 碳化参数
     carbon = ExperimentCarbon(
         experiment_id=experiment_id,
-        carbon_furnace_number=data['carbon_furnace_num'],
-        carbon_furnace_batch=data['carbon_batch_num'],
-        boat_model=data.get('boat_model'),
-        wrapping_method=data.get('wrap_type'),
-        vacuum_degree=data.get('vacuum_degree'),
-        power_consumption=data.get('carbon_power'),
-        start_time=_parse_datetime(data.get('carbon_start_time')),
-        end_time=_parse_datetime(data.get('carbon_end_time')),
-    
-    # ✅ 新增：碳化温度/厚度字段
-        carbon_temp1=data.get('carbon_temp1'),
-        carbon_thickness1=data.get('carbon_thickness1'),
-        carbon_temp2=data.get('carbon_temp2'),
-        carbon_thickness2=data.get('carbon_thickness2'),
-    
-        carbon_max_temp=data['carbon_max_temp'],
-        carbon_film_thickness=data['carbon_film_thickness'],
-        carbon_total_time=data['carbon_total_time'],
-        carbon_after_weight=data['carbon_weight'],
-        carbon_yield_rate=data['carbon_yield_rate'],
-        carbon_notes=data.get('carbon_notes')
+        carbon_furnace_number=data['carbon_furnace_num'],      # ✅ 必填
+        carbon_furnace_batch=data['carbon_batch_num'],         # ✅ 必填
+        boat_model=data.get('boat_model'),                     # 非必填
+        wrapping_method=data.get('wrap_type'),                 # 非必填
+        vacuum_degree=data.get('vacuum_degree'),               # 非必填
+        power_consumption=data.get('carbon_power'),            # 非必填
+        start_time=_parse_datetime(data.get('carbon_start_time')),  # 非必填
+        end_time=_parse_datetime(data.get('carbon_end_time')),      # 非必填
+        
+        # 碳化温度/厚度字段
+        carbon_temp1=data.get('carbon_temp1'),                 # 非必填
+        carbon_thickness1=data.get('carbon_thickness1'),       # 非必填
+        carbon_temp2=data.get('carbon_temp2'),                 # 非必填
+        carbon_thickness2=data.get('carbon_thickness2'),       # 非必填
+        
+        carbon_max_temp=data['carbon_max_temp'],               # ✅ 必填
+        carbon_film_thickness=data.get('carbon_film_thickness'),  # ❌ 改为非必填
+        carbon_total_time=data['carbon_total_time'],           # ✅ 必填
+        carbon_after_weight=data.get('carbon_weight'),         # ❌ 改为非必填
+        carbon_yield_rate=data.get('carbon_yield_rate'),       # ❌ 改为非必填
+        carbon_notes=data.get('carbon_notes')                  # 非必填
     )
     db.session.add(carbon)
     
     # 5. 石墨化参数
     graphite = ExperimentGraphite(
         experiment_id=experiment_id,
-        graphite_furnace_number=data['graphite_furnace_num'],
-        graphite_furnace_batch=data.get('graphite_batch_num'),
-        graphite_start_time=_parse_datetime(data.get('graphite_start_time')),
-        graphite_end_time=_parse_datetime(data.get('graphite_end_time')),
-        gas_pressure=data['pressure_value'],
-        graphite_power=data.get('graphite_power'),
-        graphite_temp1=data.get('graphite_temp1'),
-        graphite_thickness1=data.get('graphite_thickness1'),
-        graphite_temp2=data.get('graphite_temp2'),
-        graphite_thickness2=data.get('graphite_thickness2'),
-        graphite_temp3=data.get('graphite_temp3'),
-        graphite_thickness3=data.get('graphite_thickness3'),
-        graphite_temp4=data.get('graphite_temp4'),
-        graphite_thickness4=data.get('graphite_thickness4'),
-        graphite_temp5=data.get('graphite_temp5'),
-        graphite_thickness5=data.get('graphite_thickness5'),
-        graphite_temp6=data.get('graphite_temp6'),
-        graphite_thickness6=data.get('graphite_thickness6'),
-        graphite_max_temp=data['graphite_max_temp'],
-        foam_thickness=data['foam_thickness'],
-        graphite_width=data['graphite_width'],
-        shrinkage_ratio=data['shrinkage_ratio'],
-        graphite_total_time=data['graphite_total_time'],
-        graphite_after_weight=data['graphite_weight'],
-        graphite_yield_rate=data['graphite_yield_rate'],
-        graphite_min_thickness=data.get('graphite_min_thickness'),
-        graphite_notes=data.get('graphite_notes')
+        graphite_furnace_number=data['graphite_furnace_num'], # ✅ 必填
+        graphite_furnace_batch=data.get('graphite_batch_num'), # 非必填
+        graphite_start_time=_parse_datetime(data.get('graphite_start_time')),  # 非必填
+        graphite_end_time=_parse_datetime(data.get('graphite_end_time')),      # 非必填
+        gas_pressure=data.get('pressure_value'),               # ❌ 改为非必填
+        graphite_power=data.get('graphite_power'),             # 非必填
+        graphite_temp1=data.get('graphite_temp1'),             # 非必填
+        graphite_thickness1=data.get('graphite_thickness1'),   # 非必填
+        graphite_temp2=data.get('graphite_temp2'),             # 非必填
+        graphite_thickness2=data.get('graphite_thickness2'),   # 非必填
+        graphite_temp3=data.get('graphite_temp3'),             # 非必填
+        graphite_thickness3=data.get('graphite_thickness3'),   # 非必填
+        graphite_temp4=data.get('graphite_temp4'),             # 非必填
+        graphite_thickness4=data.get('graphite_thickness4'),   # 非必填
+        graphite_temp5=data.get('graphite_temp5'),             # 非必填
+        graphite_thickness5=data.get('graphite_thickness5'),   # 非必填
+        graphite_temp6=data.get('graphite_temp6'),             # 非必填
+        graphite_thickness6=data.get('graphite_thickness6'),   # 非必填
+        graphite_max_temp=data['graphite_max_temp'],           # ✅ 必填
+        foam_thickness=data['foam_thickness'],                 # ✅ 必填
+        graphite_width=data['graphite_width'],                 # ✅ 必填
+        shrinkage_ratio=data['shrinkage_ratio'],               # ✅ 必填
+        graphite_total_time=data['graphite_total_time'],       # ✅ 必填
+        graphite_after_weight=data['graphite_weight'],         # ✅ 必填
+        graphite_yield_rate=data.get('graphite_yield_rate'),   # ❌ 改为非必填
+        graphite_min_thickness=data.get('graphite_min_thickness'),  # 非必填
+        graphite_notes=data.get('graphite_notes')              # 非必填
     )
     db.session.add(graphite)
     
     # 6. 压延参数
     rolling = ExperimentRolling(
         experiment_id=experiment_id,
-        rolling_machine=data.get('rolling_machine_num'),
-        rolling_pressure=data.get('rolling_pressure'),
-        rolling_tension=data.get('rolling_tension'),
-        rolling_speed=data.get('rolling_speed'),
-        rolling_notes=data.get('rolling_notes')
+        rolling_machine=data.get('rolling_machine_num'),       # 非必填
+        rolling_pressure=data.get('rolling_pressure'),         # 非必填
+        rolling_tension=data.get('rolling_tension'),           # 非必填
+        rolling_speed=data.get('rolling_speed'),               # 非必填
+        rolling_notes=data.get('rolling_notes')                # 非必填
     )
     db.session.add(rolling)
     
     # 7. 产品参数
     product = ExperimentProduct(
         experiment_id=experiment_id,
-        product_code=data.get('product_code'),
-        avg_thickness=data['product_avg_thickness'],
-        specification=data['product_spec'],
-        avg_density=data['product_avg_density'],
-        thermal_diffusivity=data['thermal_diffusivity'],
-        thermal_conductivity=data['thermal_conductivity'],
-        specific_heat=data['specific_heat'],
-        cohesion=data['cohesion'],
-        peel_strength=data['peel_strength'],
-        roughness=data['roughness'],
-        appearance_desc=data['appearance_description'],
-        experiment_summary=data.get('experiment_summary'),
-        remarks=data.get('remarks'),
-        bond_strength=data.get('bond_strength')
+        product_code=data.get('product_code'),                 # 非必填
+        avg_thickness=data['product_avg_thickness'],           # ✅ 必填
+        specification=data['product_spec'],                    # ✅ 必填
+        avg_density=data['product_avg_density'],               # ✅ 必填
+        thermal_diffusivity=data['thermal_diffusivity'],       # ✅ 必填
+        thermal_conductivity=data['thermal_conductivity'],     # ✅ 必填
+        specific_heat=data['specific_heat'],                   # ✅ 必填
+        cohesion=data.get('cohesion'),                         # ❌ 改为非必填
+        peel_strength=data.get('peel_strength'),               # ❌ 改为非必填
+        roughness=data.get('roughness'),                       # ❌ 改为非必填
+        appearance_desc=data['appearance_description'],        # ✅ 必填
+        experiment_summary=data.get('experiment_summary'),     # 非必填
+        remarks=data.get('remarks'),                           # 非必填
+        bond_strength=data.get('bond_strength')                # 非必填
     )
     db.session.add(product)
 

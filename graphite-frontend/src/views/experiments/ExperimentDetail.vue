@@ -200,28 +200,34 @@
             <el-descriptions-item label="碳化装载方式照片" :span="2">
               <div v-if="carbonData.carbon_loading_photo">
                 <el-image
-                  :src="carbonData.carbon_loading_photo"
+                  :src="carbonData.carbon_loading_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[carbonData.carbon_loading_photo]"
+                  :preview-src-list="[carbonData.carbon_loading_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ carbonData.carbon_loading_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
             <el-descriptions-item label="碳化样品照片" :span="2">
               <div v-if="carbonData.carbon_sample_photo">
                 <el-image
-                  :src="carbonData.carbon_sample_photo"
+                  :src="carbonData.carbon_sample_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[carbonData.carbon_sample_photo]"
+                  :preview-src-list="[carbonData.carbon_sample_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ carbonData.carbon_sample_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
             <el-descriptions-item label="碳化其它参数" :span="2">
-              <el-link v-if="carbonData.carbon_other_params" type="primary" :href="carbonData.carbon_other_params" target="_blank">
-                查看文件
+              <el-link v-if="carbonData.carbon_other_params" type="primary" :href="carbonData.carbon_other_params.file_url" target="_blank">
+                {{ carbonData.carbon_other_params.filename || '查看文件' }}
               </el-link>
               <span v-else>-</span>
             </el-descriptions-item>
@@ -315,28 +321,34 @@
             <el-descriptions-item label="石墨化装载方式照片" :span="2">
               <div v-if="graphiteData.graphite_loading_photo">
                 <el-image
-                  :src="graphiteData.graphite_loading_photo"
+                  :src="graphiteData.graphite_loading_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[graphiteData.graphite_loading_photo]"
+                  :preview-src-list="[graphiteData.graphite_loading_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ graphiteData.graphite_loading_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
             <el-descriptions-item label="石墨化样品照片" :span="2">
               <div v-if="graphiteData.graphite_sample_photo">
                 <el-image
-                  :src="graphiteData.graphite_sample_photo"
+                  :src="graphiteData.graphite_sample_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[graphiteData.graphite_sample_photo]"
+                  :preview-src-list="[graphiteData.graphite_sample_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ graphiteData.graphite_sample_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
             <el-descriptions-item label="石墨化其它参数" :span="2">
-              <el-link v-if="graphiteData.graphite_other_params" type="primary" :href="graphiteData.graphite_other_params" target="_blank">
-                查看文件
+              <el-link v-if="graphiteData.graphite_other_params" type="primary" :href="graphiteData.graphite_other_params.file_url" target="_blank">
+                {{ graphiteData.graphite_other_params.filename || '查看文件' }}
               </el-link>
               <span v-else>-</span>
             </el-descriptions-item>
@@ -400,22 +412,28 @@
             <el-descriptions-item label="外观不良照片" :span="2">
               <div v-if="productData.appearance_defect_photo">
                 <el-image
-                  :src="productData.appearance_defect_photo"
+                  :src="productData.appearance_defect_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[productData.appearance_defect_photo]"
+                  :preview-src-list="[productData.appearance_defect_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ productData.appearance_defect_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
             <el-descriptions-item label="样品照片" :span="2">
               <div v-if="productData.sample_photo">
                 <el-image
-                  :src="productData.sample_photo"
+                  :src="productData.sample_photo.file_url"
                   fit="cover"
-                  :preview-src-list="[productData.sample_photo]"
+                  :preview-src-list="[productData.sample_photo.file_url]"
                   style="width: 100px; height: 100px;"
                 />
+                <div style="margin-top: 5px; font-size: 12px; color: #909399;">
+                  {{ productData.sample_photo.filename }}
+                </div>
               </div>
               <span v-else>-</span>
             </el-descriptions-item>
@@ -423,8 +441,8 @@
               {{ productData.experiment_summary || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="其它文件" :span="2">
-              <el-link v-if="productData.other_files" type="primary" :href="productData.other_files" target="_blank">
-                查看文件
+              <el-link v-if="productData.other_files" type="primary" :href="productData.other_files.file_url" target="_blank">
+                {{ productData.other_files.filename || '查看文件' }}
               </el-link>
               <span v-else>-</span>
             </el-descriptions-item>
@@ -485,6 +503,9 @@ async function loadExperimentDetail() {
       return
     }
 
+    // ✅ 定义API基础URL（用于文件URL转换）
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+
     experimentId.value = id
     const response = await experimentApi.getExperimentDetail(id)
     console.log('✅ API 响应:', response)
@@ -524,11 +545,35 @@ async function loadExperimentDetail() {
     }
 
     if (exp.carbon || exp.experiment_carbon) {
-      Object.assign(carbonData, exp.carbon || exp.experiment_carbon)
+      const carbonSource = exp.carbon || exp.experiment_carbon
+      Object.assign(carbonData, carbonSource)
+      
+      // ✅ 转换碳化参数的文件URL为完整URL
+      if (carbonData.carbon_loading_photo && carbonData.carbon_loading_photo.file_url) {
+        carbonData.carbon_loading_photo.file_url = `${baseURL}${carbonData.carbon_loading_photo.file_url}`
+      }
+      if (carbonData.carbon_sample_photo && carbonData.carbon_sample_photo.file_url) {
+        carbonData.carbon_sample_photo.file_url = `${baseURL}${carbonData.carbon_sample_photo.file_url}`
+      }
+      if (carbonData.carbon_other_params && carbonData.carbon_other_params.file_url) {
+        carbonData.carbon_other_params.file_url = `${baseURL}${carbonData.carbon_other_params.file_url}`
+      }
     }
 
     if (exp.graphite || exp.experiment_graphite) {
-      Object.assign(graphiteData, exp.graphite || exp.experiment_graphite)
+      const graphiteSource = exp.graphite || exp.experiment_graphite
+      Object.assign(graphiteData, graphiteSource)
+      
+      // ✅ 转换石墨化参数的文件URL为完整URL
+      if (graphiteData.graphite_loading_photo && graphiteData.graphite_loading_photo.file_url) {
+        graphiteData.graphite_loading_photo.file_url = `${baseURL}${graphiteData.graphite_loading_photo.file_url}`
+      }
+      if (graphiteData.graphite_sample_photo && graphiteData.graphite_sample_photo.file_url) {
+        graphiteData.graphite_sample_photo.file_url = `${baseURL}${graphiteData.graphite_sample_photo.file_url}`
+      }
+      if (graphiteData.graphite_other_params && graphiteData.graphite_other_params.file_url) {
+        graphiteData.graphite_other_params.file_url = `${baseURL}${graphiteData.graphite_other_params.file_url}`
+      }
     }
 
     if (exp.rolling || exp.experiment_rolling) {
@@ -536,7 +581,19 @@ async function loadExperimentDetail() {
     }
 
     if (exp.product || exp.experiment_product) {
-      Object.assign(productData, exp.product || exp.experiment_product)
+      const productSource = exp.product || exp.experiment_product
+      Object.assign(productData, productSource)
+      
+      // ✅ 转换成品参数的文件URL为完整URL
+      if (productData.appearance_defect_photo && productData.appearance_defect_photo.file_url) {
+        productData.appearance_defect_photo.file_url = `${baseURL}${productData.appearance_defect_photo.file_url}`
+      }
+      if (productData.sample_photo && productData.sample_photo.file_url) {
+        productData.sample_photo.file_url = `${baseURL}${productData.sample_photo.file_url}`
+      }
+      if (productData.other_files && productData.other_files.file_url) {
+        productData.other_files.file_url = `${baseURL}${productData.other_files.file_url}`
+      }
     }
 
     console.log('✅ 各模块数据加载完成')
