@@ -122,6 +122,7 @@ export interface ExperimentListItem {
   customer_name: string
   pi_film_model: string
   experiment_date: string
+  experiment_purpose: string  // ✅ 新增：实验目的
   created_by_name: string
   created_at: string
   updated_at: string

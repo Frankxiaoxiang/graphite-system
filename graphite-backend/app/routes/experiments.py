@@ -692,20 +692,21 @@ def get_experiments():
                 'pi_film_thickness': basic.pi_film_thickness if basic else None,
                 'customer_name': basic.customer_name if basic else None,
                 'pi_film_model': basic.pi_film_model if basic else None,
-                'experiment_date': basic.experiment_date.strftime('%Y-%m-%d') if (basic and basic.experiment_date) else None
+                'experiment_date': basic.experiment_date.strftime('%Y-%m-%d') if (basic and basic.experiment_date) else None,
+                'experiment_purpose': basic.experiment_purpose if basic else None,  # ✅ 新增
             }
             result_data.append(item)
-        
+
         print(f"\n✅ 查询成功: 总{paginated.total}条, 当前页{len(result_data)}条")
         print("="*60 + "\n")
-        
+
         # 返回数据 - 适配前端 PaginatedResponse 格式
         return jsonify({
-            'data': result_data,         # 使用 data 字段
+            'data': result_data,
             'total': paginated.total,
             'page': paginated.page,
-            'size': paginated.per_page,  # 使用 size 字段
-            'pages': paginated.pages     # 使用 pages 字段
+            'size': paginated.per_page,
+            'pages': paginated.pages
         }), 200
         
     except Exception as e:

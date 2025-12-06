@@ -104,6 +104,18 @@
 
         <el-table-column prop="experiment_date" label="实验日期" width="120" align="center" />
 
+        <!-- ✅ 新增：实验目的列 -->
+        <el-table-column
+          prop="experiment_purpose"
+          label="实验目的"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.experiment_purpose || '-' }}
+          </template>
+        </el-table-column>
+
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.status === 'draft'" type="info" size="small">
