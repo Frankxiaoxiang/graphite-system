@@ -149,6 +149,40 @@ export interface PaginatedResponse<T> {
   pages: number
 }
 
+/**
+ * 实验统计数据接口
+ * 用于仪表板展示
+ */
+export interface ExperimentStats {
+  summary: {
+    total_experiments: number
+    total_growth: number
+    draft_experiments: number
+    draft_growth: number
+    my_experiments: number
+    my_growth: number
+    submitted_experiments: number
+    submitted_growth: number
+  }
+  status_distribution: {
+    draft: number
+    submitted: number
+    completed: number
+  }
+  monthly_trend: Array<{
+    month: string
+    count: number
+  }>
+  thickness_distribution: Array<{
+    thickness: string
+    count: number
+  }>
+  customer_distribution: Array<{
+    customer: string
+    count: number
+  }>
+}
+
 class ExperimentApi {
   /**
    * 获取实验列表
@@ -255,15 +289,9 @@ class ExperimentApi {
 
   /**
    * 获取实验统计数据
+   * 用于仪表板展示
    */
-  async getExperimentStats(): Promise<{
-    total: number
-    drafts: number
-    submitted: number
-    approved: number
-    thisMonth: number
-    thisWeek: number
-  }> {
+  async getExperimentStats(): Promise<ExperimentStats> {
     return await request.get('/experiments/stats')
   }
 

@@ -10,10 +10,11 @@ from app.models.system_log import SystemLog
 from app.models.file_upload import FileUpload  # ✅ 新增
 from app.utils.experiment_code import generate_experiment_code, validate_experiment_code_format
 from app.utils.permissions import require_permission
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import io
 import traceback
+from sqlalchemy import func, extract
 
 experiments_bp = Blueprint('experiments', __name__)
 
@@ -1515,3 +1516,265 @@ def _parse_datetime(datetime_str):
             except:
                 return None
     return datetime_str
+
+
+# ==========================================
+# 📊 统计数据 API
+# ==========================================
+@experiments_bp.route('/stats', methods=['GET'])
+def get_experiment_stats():
+    """
+    获取实验统计数据 - 用于仪表板展示
+    
+    返回数据：
+    {
+        "summary": {
+            "total_experiments": 总实验数,
+            "total_growth": 周增长数,
+            "draft_experiments": 草稿数,
+            "draft_growth": 草稿周增长,
+            "my_experiments": 我的实验数,
+            "my_growth": 我的周增长,
+            "submitted_experiments": 已提交数,
+            "submitted_growth": 已提交周增长
+        },
+        "status_distribution": {
+            "draft": 草稿数,
+            "submitted": 已提交数,
+            "completed": 已完成数
+        },
+        "monthly_trend": [
+            {"month": "2025-01", "count": 10},
+            {"month": "2025-02", "count": 15},
+            ...
+        ],
+        "thickness_distribution": [
+            {"thickness": "50μm", "count": 5},
+            {"thickness": "75μm", "count": 8},
+            ...
+        ],
+        "customer_distribution": [
+            {"customer": "SA", "count": 12},
+            {"customer": "LG", "count": 8},
+            ...
+        ]
+    }
+    """
+    print("\n" + "="*60)
+    print("📊 收到统计数据查询请求")
+    print("="*60)
+    
+    try:
+        # 1. JWT验证
+        verify_jwt_in_request()
+        current_user_id = int(get_jwt_identity())
+        current_user = User.query.get(current_user_id)
+        
+        print(f"✅ JWT 验证成功！用户 ID: {current_user_id}, 角色: {current_user.role}")
+        
+        # 计算本周的起始日期（上周一）
+        today = datetime.now().date()
+        days_since_monday = today.weekday()
+        last_monday = today - timedelta(days=days_since_monday + 7)
+        this_monday = today - timedelta(days=days_since_monday)
+        
+        print(f"\n📅 时间范围：")
+        print(f"   - 上周一: {last_monday}")
+        print(f"   - 本周一: {this_monday}")
+        print(f"   - 今天: {today}")
+        
+        # 2. 统计概要数据
+        summary = {}
+        
+        # 2.1 总实验数（根据角色权限）
+        if current_user.role == 'user':
+            # 普通用户只能看自己的数据
+            total_query = Experiment.query.filter_by(created_by=current_user_id)
+            print(f"\n   权限: 仅统计用户自己的数据")
+        else:
+            # 管理员和工程师可以看所有数据
+            total_query = Experiment.query
+            print(f"\n   权限: 统计所有数据")
+        
+        summary['total_experiments'] = total_query.count()
+        summary['total_growth'] = total_query.filter(
+            Experiment.created_at >= this_monday
+        ).count()
+        
+        # 2.2 草稿实验数
+        if current_user.role == 'user':
+            draft_query = Experiment.query.filter_by(
+                created_by=current_user_id,
+                status='draft'
+            )
+        else:
+            draft_query = Experiment.query.filter_by(status='draft')
+        
+        summary['draft_experiments'] = draft_query.count()
+        summary['draft_growth'] = draft_query.filter(
+            Experiment.created_at >= this_monday
+        ).count()
+        
+        # 2.3 我的实验数（总是当前用户的）
+        my_query = Experiment.query.filter_by(created_by=current_user_id)
+        summary['my_experiments'] = my_query.count()
+        summary['my_growth'] = my_query.filter(
+            Experiment.created_at >= this_monday
+        ).count()
+        
+        # 2.4 已提交实验数
+        if current_user.role == 'user':
+            submitted_query = Experiment.query.filter_by(
+                created_by=current_user_id,
+                status='submitted'
+            )
+        else:
+            submitted_query = Experiment.query.filter_by(status='submitted')
+        
+        summary['submitted_experiments'] = submitted_query.count()
+        summary['submitted_growth'] = submitted_query.filter(
+            Experiment.submitted_at.isnot(None),  # ✅ 添加NULL检查
+            Experiment.submitted_at >= this_monday
+        ).count()
+        
+        print(f"\n📊 统计概要：")
+        print(f"   - 总实验: {summary['total_experiments']} (本周+{summary['total_growth']})")
+        print(f"   - 草稿: {summary['draft_experiments']} (本周+{summary['draft_growth']})")
+        print(f"   - 我的: {summary['my_experiments']} (本周+{summary['my_growth']})")
+        print(f"   - 已提交: {summary['submitted_experiments']} (本周+{summary['submitted_growth']})")
+        
+        # 3. 状态分布
+        if current_user.role == 'user':
+            status_query = db.session.query(
+                Experiment.status,
+                func.count(Experiment.id).label('count')
+            ).filter_by(created_by=current_user_id).group_by(Experiment.status)
+        else:
+            status_query = db.session.query(
+                Experiment.status,
+                func.count(Experiment.id).label('count')
+            ).group_by(Experiment.status)
+        
+        status_distribution = {}
+        for status, count in status_query.all():
+            status_distribution[status] = count
+        
+        # 确保所有状态都有值（即使是0）
+        for status in ['draft', 'submitted', 'completed']:
+            if status not in status_distribution:
+                status_distribution[status] = 0
+        
+        print(f"\n📈 状态分布：")
+        print(f"   - 草稿: {status_distribution.get('draft', 0)}")
+        print(f"   - 已提交: {status_distribution.get('submitted', 0)}")
+        print(f"   - 已完成: {status_distribution.get('completed', 0)}")
+        
+        # 4. 月度趋势（最近12个月）
+        twelve_months_ago = today - timedelta(days=365)
+        
+        if current_user.role == 'user':
+            monthly_query = db.session.query(
+                func.date_format(Experiment.created_at, '%Y-%m').label('month'),
+                func.count(Experiment.id).label('count')
+            ).filter(
+                Experiment.created_by == current_user_id,
+                Experiment.created_at >= twelve_months_ago
+            ).group_by('month').order_by('month')
+        else:
+            monthly_query = db.session.query(
+                func.date_format(Experiment.created_at, '%Y-%m').label('month'),
+                func.count(Experiment.id).label('count')
+            ).filter(
+                Experiment.created_at >= twelve_months_ago
+            ).group_by('month').order_by('month')
+        
+        monthly_trend = []
+        for month, count in monthly_query.all():
+            monthly_trend.append({
+                'month': month,
+                'count': count
+            })
+        
+        print(f"\n📅 月度趋势: {len(monthly_trend)} 个月有数据")
+        
+        # 5. PI膜厚度分布（从 experiment_basic 表）
+        if current_user.role == 'user':
+            thickness_query = db.session.query(
+                ExperimentBasic.pi_film_thickness,
+                func.count(ExperimentBasic.id).label('count')
+            ).join(Experiment).filter(
+                Experiment.created_by == current_user_id,
+                ExperimentBasic.pi_film_thickness.isnot(None)
+            ).group_by(ExperimentBasic.pi_film_thickness).order_by(
+                ExperimentBasic.pi_film_thickness
+            )
+        else:
+            thickness_query = db.session.query(
+                ExperimentBasic.pi_film_thickness,
+                func.count(ExperimentBasic.id).label('count')
+            ).filter(
+                ExperimentBasic.pi_film_thickness.isnot(None)
+            ).group_by(ExperimentBasic.pi_film_thickness).order_by(
+                ExperimentBasic.pi_film_thickness
+            )
+        
+        thickness_distribution = []
+        for thickness, count in thickness_query.all():
+            thickness_distribution.append({
+                'thickness': f"{int(thickness)}μm" if thickness else "未知",
+                'count': count
+            })
+        
+        print(f"\n📏 厚度分布: {len(thickness_distribution)} 种厚度")
+        
+        # 6. 客户分布（从 experiment_basic 表）
+        if current_user.role == 'user':
+            customer_query = db.session.query(
+                ExperimentBasic.customer_name,
+                func.count(ExperimentBasic.id).label('count')
+            ).join(Experiment).filter(
+                Experiment.created_by == current_user_id,
+                ExperimentBasic.customer_name.isnot(None)
+            ).group_by(ExperimentBasic.customer_name).order_by(
+                func.count(ExperimentBasic.id).desc()
+            ).limit(10)  # 只显示前10个客户
+        else:
+            customer_query = db.session.query(
+                ExperimentBasic.customer_name,
+                func.count(ExperimentBasic.id).label('count')
+            ).filter(
+                ExperimentBasic.customer_name.isnot(None)
+            ).group_by(ExperimentBasic.customer_name).order_by(
+                func.count(ExperimentBasic.id).desc()
+            ).limit(10)
+        
+        customer_distribution = []
+        for customer, count in customer_query.all():
+            customer_distribution.append({
+                'customer': customer or "未知",
+                'count': count
+            })
+        
+        print(f"\n👥 客户分布: {len(customer_distribution)} 个客户")
+        
+        # 7. 组装响应数据
+        response_data = {
+            'summary': summary,
+            'status_distribution': status_distribution,
+            'monthly_trend': monthly_trend,
+            'thickness_distribution': thickness_distribution,
+            'customer_distribution': customer_distribution
+        }
+        
+        print(f"\n✅ 统计数据查询成功！")
+        print("="*60 + "\n")
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        print(f"\n❌ 统计数据查询失败：{type(e).__name__}")
+        print(f"   错误详情：{str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("="*60 + "\n")
+        return jsonify({'error': f'统计数据查询失败: {str(e)}'}), 500
