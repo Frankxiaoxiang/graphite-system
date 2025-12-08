@@ -48,6 +48,16 @@ const router = createRouter({
           meta: { requiresAuth: true, roles: ['admin', 'engineer'] }
         },
         {
+          path: 'compare',
+          name: 'experiment-compare',
+          component: () => import('@/views/experiments/ExperimentCompare.vue'),
+          meta: { 
+            title: '实验数据对比',
+            requiresAuth: true, 
+            roles: ['admin', 'engineer']
+          }
+        },
+        {
           path: 'edit/:id',
           name: 'experiment-edit',
           component: () => import('@/views/experiments/CreateExperiment.vue'),

@@ -304,7 +304,7 @@ const menuItems = [
     description: '实验数据的统计分析和对比',
     icon: DataAnalysis,
     iconClass: 'analysis-icon',
-    route: '/experiments/analysis',
+    route: '/experiments/compare',
     roles: ['admin', 'engineer'],
     disabled: false
   },
@@ -372,11 +372,11 @@ const handleCommand = async (command: string) => {
 const loadStats = async () => {
   loadingStats.value = true
   loadingCharts.value = true
-  
+
   try {
     const stats = await experimentApi.getExperimentStats()
     statsData.value = stats
-    
+
     // 延迟渲染图表，确保DOM已更新
     setTimeout(() => {
       initCharts()
@@ -401,14 +401,14 @@ const initCharts = () => {
 // 初始化状态分布饼图
 const initStatusChart = () => {
   if (!statusChartRef.value) return
-  
+
   // 销毁旧实例
   if (statusChart) {
     statusChart.dispose()
   }
-  
+
   statusChart = echarts.init(statusChartRef.value)
-  
+
   const option = {
     tooltip: {
       trigger: 'item',
@@ -447,18 +447,18 @@ const initStatusChart = () => {
           show: false
         },
         data: [
-          { 
-            value: statsData.value.status_distribution.draft, 
+          {
+            value: statsData.value.status_distribution.draft,
             name: '草稿',
             itemStyle: { color: '#909399' }
           },
-          { 
-            value: statsData.value.status_distribution.submitted, 
+          {
+            value: statsData.value.status_distribution.submitted,
             name: '已提交',
             itemStyle: { color: '#67C23A' }
           },
-          { 
-            value: statsData.value.status_distribution.completed, 
+          {
+            value: statsData.value.status_distribution.completed,
             name: '已完成',
             itemStyle: { color: '#409EFF' }
           }
@@ -466,20 +466,20 @@ const initStatusChart = () => {
       }
     ]
   }
-  
+
   statusChart.setOption(option)
 }
 
 // 初始化客户分布饼图
 const initCustomerChart = () => {
   if (!customerChartRef.value) return
-  
+
   if (customerChart) {
     customerChart.dispose()
   }
-  
+
   customerChart = echarts.init(customerChartRef.value)
-  
+
   const option = {
     tooltip: {
       trigger: 'item',
@@ -511,23 +511,23 @@ const initCustomerChart = () => {
       }
     ]
   }
-  
+
   customerChart.setOption(option)
 }
 
 // 初始化月度趋势折线图
 const initTrendChart = () => {
   if (!trendChartRef.value) return
-  
+
   if (trendChart) {
     trendChart.dispose()
   }
-  
+
   trendChart = echarts.init(trendChartRef.value)
-  
+
   const months = statsData.value.monthly_trend.map(item => item.month)
   const counts = statsData.value.monthly_trend.map(item => item.count)
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -587,23 +587,23 @@ const initTrendChart = () => {
       }
     ]
   }
-  
+
   trendChart.setOption(option)
 }
 
 // 初始化厚度分布柱状图
 const initThicknessChart = () => {
   if (!thicknessChartRef.value) return
-  
+
   if (thicknessChart) {
     thicknessChart.dispose()
   }
-  
+
   thicknessChart = echarts.init(thicknessChartRef.value)
-  
+
   const thicknesses = statsData.value.thickness_distribution.map(item => item.thickness)
   const counts = statsData.value.thickness_distribution.map(item => item.count)
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -666,7 +666,7 @@ const initThicknessChart = () => {
       }
     ]
   }
-  
+
   thicknessChart.setOption(option)
 }
 
@@ -928,11 +928,11 @@ onBeforeUnmount(() => {
   .main-content {
     padding: 10px 20px;
   }
-  
+
   .stats-section :deep(.el-col) {
     margin-bottom: 10px;
   }
-  
+
   .menu-grid {
     grid-template-columns: 1fr;
   }

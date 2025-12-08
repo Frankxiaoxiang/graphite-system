@@ -91,12 +91,14 @@ def create_app(config_name='development'):
     from app.routes.dropdown import dropdown_bp
     from app.routes.files import files_bp
     from app.routes.admin import admin_bp
+    from app.routes.compare import compare_bp  # ✅ 新增：实验对比功能
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(experiments_bp, url_prefix='/api/experiments')
     app.register_blueprint(dropdown_bp, url_prefix='/api/dropdown')
     app.register_blueprint(files_bp, url_prefix='/api/files')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(compare_bp, url_prefix='/api/compare')  # ✅ 新增：实验对比功能
     
     # 错误处理
     @app.errorhandler(404)
