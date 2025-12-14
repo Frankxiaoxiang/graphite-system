@@ -310,11 +310,11 @@ const menuItems = [
   },
   {
     id: 'admin',
-    title: '系统管理',
-    description: '用户管理和系统配置',
+    title: '用户管理',
+    description: '用户管理和权限配置',
     icon: Setting,
     iconClass: 'admin-icon',
-    route: '/admin',
+    route: '/admin/users',
     roles: ['admin'],
     disabled: false
   }

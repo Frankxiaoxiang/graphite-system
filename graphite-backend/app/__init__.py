@@ -86,19 +86,80 @@ def create_app(config_name='development'):
     # ====================================================
     
     # 注册蓝图
+    print("=" * 60)
+    print("📦 开始注册蓝图...")
+    print("=" * 60)
+    
     from app.routes.auth import auth_bp
+    print("✅ auth_bp 导入成功")
+    
     from app.routes.experiments import experiments_bp
+    print("✅ experiments_bp 导入成功")
+    
     from app.routes.dropdown import dropdown_bp
+    print("✅ dropdown_bp 导入成功")
+    
     from app.routes.files import files_bp
-    from app.routes.admin import admin_bp
-    from app.routes.compare import compare_bp  # ✅ 新增：实验对比功能
+    print("✅ files_bp 导入成功")
+    
+    print("\n🔍 尝试导入 admin_bp...")
+    try:
+        from app.routes.admin import admin_bp
+        print("✅ admin_bp 导入成功！")
+        print(f"   - 蓝图名称: {admin_bp.name}")
+        print(f"   - 蓝图对象: {admin_bp}")
+    except Exception as e:
+        print(f"❌ admin_bp 导入失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+        # 创建一个空的蓝图作为占位符，避免后续注册失败
+        from flask import Blueprint
+        admin_bp = Blueprint('admin_placeholder', __name__)
+        print("⚠️  已创建占位符蓝图")
+    
+    from app.routes.compare import compare_bp
+    print("✅ compare_bp 导入成功")
+    
+    print("\n" + "=" * 60)
+    print("📝 开始注册蓝图到应用...")
+    print("=" * 60)
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    print("✅ auth_bp 注册成功 -> /api/auth")
+    
     app.register_blueprint(experiments_bp, url_prefix='/api/experiments')
+    print("✅ experiments_bp 注册成功 -> /api/experiments")
+    
     app.register_blueprint(dropdown_bp, url_prefix='/api/dropdown')
+    print("✅ dropdown_bp 注册成功 -> /api/dropdown")
+    
     app.register_blueprint(files_bp, url_prefix='/api/files')
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(compare_bp, url_prefix='/api/compare')  # ✅ 新增：实验对比功能
+    print("✅ files_bp 注册成功 -> /api/files")
+    
+    print("\n🔍 尝试注册 admin_bp...")
+    try:
+        app.register_blueprint(admin_bp, url_prefix='/api/admin')
+        print("✅ admin_bp 注册成功 -> /api/admin")
+        # 打印 admin_bp 的所有路由
+        print("   已注册的 admin 路由:")
+        for rule in app.url_map.iter_rules():
+            if rule.rule.startswith('/api/admin'):
+                print(f"      {rule.methods} {rule.rule}")
+    except Exception as e:
+        print(f"❌ admin_bp 注册失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+    
+    app.register_blueprint(compare_bp, url_prefix='/api/compare')
+    print("✅ compare_bp 注册成功 -> /api/compare")
+    
+    print("\n" + "=" * 60)
+    print("✅ 所有蓝图注册完成！")
+    print("=" * 60 + "\n")
     
     # 错误处理
     @app.errorhandler(404)

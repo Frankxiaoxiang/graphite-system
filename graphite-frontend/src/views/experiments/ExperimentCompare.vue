@@ -1,31 +1,42 @@
 <template>
   <div class="compare-container">
-    <!-- 页面标题 -->
+    <!-- 页面头部 - 添加返回按钮 -->
     <div class="page-header">
-      <h2>实验数据对比</h2>
-      <el-button 
-        v-if="comparisonData" 
-        type="primary" 
-        @click="handleExport"
-      >
-        <el-icon><Download /></el-icon>
-        导出对比报告
-      </el-button>
+      <div class="header-left">
+        <el-button 
+          type="default" 
+          :icon="ArrowLeft" 
+          @click="handleBackToHome"
+          class="back-button"
+        >
+          返回主页
+        </el-button>
+        <h2>实验数据对比</h2>
+      </div>
+      <div class="header-right">
+        <el-button 
+          type="success" 
+          :icon="Download" 
+          @click="handleExport"
+          :disabled="!comparisonData"
+        >
+          导出报告
+        </el-button>
+      </div>
     </div>
 
-    <!-- 实验选择卡片 -->
-    <el-card class="selection-card" shadow="hover">
+    <!-- 选择实验卡片 -->
+    <el-card class="selection-card">
       <template #header>
         <div class="card-header">
           <span>选择要对比的实验（2-10个）</span>
           <el-button 
             type="primary" 
             size="small" 
-            :disabled="selectedExperiments.length >= MAX_EXPERIMENTS"
             @click="addExperiment"
+            :disabled="selectedExperiments.length >= 10"
           >
-            <el-icon><Plus /></el-icon>
-            添加实验
+            + 添加实验
           </el-button>
         </div>
       </template>
@@ -39,113 +50,86 @@
           <span class="selector-label">实验 {{ index + 1 }}:</span>
           <el-select
             v-model="selectedExperiments[index]"
-            class="experiment-select"
-            placeholder="点击选择或输入搜索实验"
+            placeholder="请选择实验"
             filterable
             remote
-            clearable
             :remote-method="searchExperiments"
             :loading="searching"
             @change="handleExperimentChange"
             @focus="handleSelectFocus"
+            class="experiment-select"
           >
             <el-option
               v-for="exp in experimentOptions"
               :key="exp.id"
-              :label="`${exp.experiment_code} - ${exp.customer_name || ''}`"
+              :label="`${exp.experiment_code} - ${exp.customer_name || '无客户'}`"
               :value="exp.id"
-              :disabled="selectedExperiments.filter(id => id !== null).includes(exp.id)"
-            >
-              <div class="experiment-option">
-                <div class="exp-code">{{ exp.experiment_code }}</div>
-                <div class="exp-info">
-                  {{ exp.customer_name }} | {{ exp.pi_film_thickness }}μm | {{ exp.experiment_date }}
-                </div>
-              </div>
-            </el-option>
+            />
           </el-select>
           <el-button 
-            v-if="selectedExperiments.length > MIN_EXPERIMENTS"
+            v-if="selectedExperiments.length > 2"
             type="danger" 
+            :icon="Delete" 
             circle 
             @click="removeExperiment(index)"
-          >
-            <el-icon><Close /></el-icon>
-          </el-button>
+          />
         </div>
       </div>
 
       <div class="action-buttons">
         <el-button 
           type="primary" 
-          size="large"
-          :disabled="validExperimentCount < MIN_EXPERIMENTS"
-          :loading="comparing"
+          :icon="Check" 
           @click="handleCompare"
+          :loading="comparing"
+          :disabled="validSelectedCount < 2"
         >
-          <el-icon><TrendCharts /></el-icon>
-          开始对比（已选 {{ validExperimentCount }} 个）
+          开始对比 ({{ validSelectedCount }}个)
         </el-button>
         <el-button 
-          size="large"
+          :icon="RefreshLeft" 
           @click="handleReset"
         >
-          <el-icon><RefreshLeft /></el-icon>
           重置
         </el-button>
       </div>
     </el-card>
 
-    <!-- 对比结果卡片 -->
-    <el-card 
-      v-if="comparisonData" 
-      class="comparison-card" 
-      shadow="hover"
-    >
+    <!-- 对比结果表格 -->
+    <el-card v-if="comparisonData" class="comparison-card">
       <template #header>
         <div class="card-header">
           <span>对比结果</span>
-          <div class="legend">
-            <span class="legend-item">
-              <span class="legend-color max"></span>
-              最大值（橙色）
-            </span>
-            <span class="legend-item">
-              <span class="legend-color min"></span>
-              最小值（绿色）
-            </span>
-          </div>
+          <el-radio-group v-model="viewMode" size="small">
+            <el-radio-button label="table">表格视图</el-radio-button>
+            <el-radio-button label="chart">图表视图</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
-      <!-- 对比表格 -->
-      <el-table 
-        :data="comparisonTableData" 
+      <!-- 表格视图 -->
+      <el-table
+        v-if="viewMode === 'table'"
+        :data="comparisonTableData"
         border
+        stripe
         :row-class-name="getRowClassName"
+        style="width: 100%"
         max-height="600"
       >
-        <!-- 字段名列 -->
+        <!-- 字段名称列 -->
         <el-table-column 
           prop="fieldName" 
           label="参数名称" 
-          width="200" 
-          fixed="left"
-        >
-          <template #default="{ row }">
-            <div class="field-name-cell">
-              <strong>{{ row.fieldName }}</strong>
-              <span v-if="row.unit" class="unit">（{{ row.unit }}）</span>
-            </div>
-          </template>
-        </el-table-column>
+          width="180" 
+          fixed
+        />
 
-        <!-- 动态实验列 -->
+        <!-- 动态生成实验列 -->
         <el-table-column
           v-for="(exp, index) in comparisonData.experiments"
           :key="exp.id"
           :label="`实验 ${index + 1}`"
-          align="center"
           min-width="150"
         >
           <template #header>
@@ -160,111 +144,55 @@
               :class="row[`highlight${index}`]"
             >
               {{ row[`value${index}`] }}
-              <span v-if="row.unit && row[`value${index}`] !== '-'" class="unit">{{ row.unit }}</span>
+              <span v-if="row.unit" class="unit">{{ row.unit }}</span>
             </div>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 图表视图 -->
+      <div v-else class="chart-view">
+        <el-empty description="图表视图开发中..." />
+      </div>
     </el-card>
 
-    <!-- 空状态 -->
+    <!-- 空状态提示 -->
     <el-empty 
-      v-if="!comparisonData && !comparing"
-      description="请选择2个或更多实验进行对比"
+      v-if="!comparisonData"
+      description="请选择至少2个实验进行对比"
       :image-size="200"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Download, Plus, Close, TrendCharts, RefreshLeft } from '@element-plus/icons-vue'
-import { debounce } from 'lodash-es'
-import * as compareApi from '@/api/compare'
-import type { Experiment, ComparisonData, ComparisonField } from '@/api/compare'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { 
+  ArrowLeft, Download, Delete, Check, RefreshLeft 
+} from '@element-plus/icons-vue'
+import { getExperimentsForCompare, compareExperiments } from '@/api/compare'
+import type { Experiment, ComparisonResult } from '@/types/experiment'
 
-// 常量定义
-const MIN_EXPERIMENTS = 2
-const MAX_EXPERIMENTS = 10
+const router = useRouter()
 
-// 响应式数据
+// 状态变量
 const selectedExperiments = ref<(number | null)[]>([null, null])
 const experimentOptions = ref<Experiment[]>([])
-const comparisonData = ref<ComparisonData | null>(null)
 const searching = ref(false)
 const comparing = ref(false)
+const comparisonData = ref<ComparisonResult | null>(null)
+const viewMode = ref('table')
 
-// 计算有效的实验数量
-const validExperimentCount = computed(() => {
+// 计算有效选择数量
+const validSelectedCount = computed(() => {
   return selectedExperiments.value.filter(id => id !== null).length
 })
 
-// 加载初始实验列表
-async function loadInitialExperiments() {
-  if (searching.value) return // 防止重复请求
-  
-  searching.value = true
-  try {
-    const response = await compareApi.getExperimentsForCompare({
-      page: 1,
-      page_size: 20,
-      status: 'submitted'
-    })
-    
-    // 直接使用返回的experiments数组
-    experimentOptions.value = response.experiments || []
-    
-    console.log('✅ 加载实验列表成功:', experimentOptions.value.length, '条')
-  } catch (error: any) {
-    console.error('❌ 加载实验列表失败:', error)
-    ElMessage.error(error.message || '加载实验列表失败')
-  } finally {
-    searching.value = false
-  }
-}
-
-// 搜索实验（带防抖）
-const searchExperimentsDebounced = debounce(async (query: string) => {
-  if (!query || query.length < 2) {
-    // 如果查询为空或太短，加载初始列表
-    await loadInitialExperiments()
-    return
-  }
-  
-  searching.value = true
-  try {
-    const response = await compareApi.getExperimentsForCompare({
-      search: query,
-      page: 1,
-      page_size: 20,
-      status: 'submitted'
-    })
-    
-    // 直接使用返回的experiments数组
-    experimentOptions.value = response.experiments || []
-    
-    console.log('✅ 搜索实验成功:', experimentOptions.value.length, '条')
-  } catch (error: any) {
-    console.error('❌ 搜索实验失败:', error)
-    ElMessage.error(error.message || '搜索实验失败')
-  } finally {
-    searching.value = false
-  }
-}, 300)
-
-// 搜索实验
-function searchExperiments(query: string) {
-  searchExperimentsDebounced(query)
-}
-
-// 处理下拉框聚焦 - 关键修复！
-function handleSelectFocus() {
-  // 如果还没有加载数据，或者数据为空，立即加载
-  if (experimentOptions.value.length === 0 && !searching.value) {
-    console.log('🔍 下拉框聚焦，加载实验列表...')
-    loadInitialExperiments()
-  }
+// 🆕 返回主页
+function handleBackToHome() {
+  router.push('/')
 }
 
 // 组件挂载时加载初始数据
@@ -273,14 +201,61 @@ onMounted(() => {
   loadInitialExperiments()
 })
 
-// 添加实验选择器
+// 🆕 下拉框获得焦点时加载数据
+function handleSelectFocus() {
+  if (experimentOptions.value.length === 0 && !searching.value) {
+    loadInitialExperiments()
+  }
+}
+
+// 🆕 加载初始实验列表
+async function loadInitialExperiments() {
+  searching.value = true
+  try {
+    const response = await getExperimentsForCompare({
+      page: 1,
+      page_size: 20,
+      status: 'submitted'
+    })
+    
+    experimentOptions.value = response.experiments || []
+    console.log(`✅ 加载实验列表成功: ${experimentOptions.value.length} 条`)
+  } catch (error: any) {
+    console.error('❌ 加载实验列表失败:', error)
+    ElMessage.error(error.message || '加载实验列表失败')
+  } finally {
+    searching.value = false
+  }
+}
+
+// 搜索实验
+async function searchExperiments(query: string) {
+  if (query.length < 2) return
+  
+  searching.value = true
+  try {
+    const response = await getExperimentsForCompare({
+      search: query,
+      page: 1,
+      page_size: 20,
+      status: 'submitted'
+    })
+    experimentOptions.value = response.experiments || []
+  } catch (error: any) {
+    ElMessage.error(error.message || '搜索实验失败')
+  } finally {
+    searching.value = false
+  }
+}
+
+// 添加实验
 function addExperiment() {
-  if (selectedExperiments.value.length < MAX_EXPERIMENTS) {
+  if (selectedExperiments.value.length < 10) {
     selectedExperiments.value.push(null)
   }
 }
 
-// 移除实验选择器
+// 移除实验
 function removeExperiment(index: number) {
   selectedExperiments.value.splice(index, 1)
 }
@@ -296,23 +271,16 @@ async function handleCompare() {
   // 过滤掉null值
   const validIds = selectedExperiments.value.filter(id => id !== null) as number[]
   
-  if (validIds.length < MIN_EXPERIMENTS) {
-    ElMessage.warning(`请至少选择${MIN_EXPERIMENTS}个实验进行对比`)
-    return
-  }
-  
-  if (validIds.length > MAX_EXPERIMENTS) {
-    ElMessage.warning(`最多只能同时对比${MAX_EXPERIMENTS}个实验`)
+  if (validIds.length < 2) {
+    ElMessage.warning('请至少选择2个实验进行对比')
     return
   }
   
   comparing.value = true
   try {
-    const response = await compareApi.compareExperiments({ 
-      experiment_ids: validIds 
-    })
+    const response = await compareExperiments({ experiment_ids: validIds })
     comparisonData.value = response
-    ElMessage.success('对比成功！')
+    ElMessage.success('对比成功')
   } catch (error: any) {
     console.error('对比失败:', error)
     ElMessage.error(error.message || '对比失败')
@@ -325,11 +293,17 @@ async function handleCompare() {
 function handleReset() {
   selectedExperiments.value = [null, null]
   comparisonData.value = null
-  // 不清空 experimentOptions，保持已加载的列表
+  experimentOptions.value = []
 }
 
-// 导出报告（预留）
-function handleExport() {
+// 导出报告
+async function handleExport() {
+  if (!comparisonData.value) {
+    ElMessage.warning('请先进行对比')
+    return
+  }
+  
+  // TODO: 实现导出功能
   ElMessage.info('导出功能开发中...')
 }
 
@@ -358,24 +332,21 @@ const comparisonTableData = computed(() => {
       return getNestedValue(exp, field.key)
     })
     
-    // 如果是数值字段，计算最大最小值并标记
+    // 如果是数值字段，计算最大最小值
     if (field.type === 'number') {
-      const numericValues = values
-        .map(v => v !== null && v !== '' ? Number(v) : null)
-        .filter(v => v !== null) as number[]
+      const numericValues = values.map(v => 
+        v !== null && v !== '' ? Number(v) : null
+      ).filter(v => v !== null) as number[]
       
-      if (numericValues.length > 1) {
+      if (numericValues.length > 0) {
         const maxValue = Math.max(...numericValues)
         const minValue = Math.min(...numericValues)
         
         values.forEach((v, i) => {
-          if (v !== null && v !== '') {
-            const numValue = Number(v)
-            if (numValue === maxValue) {
-              row[`highlight${i}`] = 'max-value'
-            } else if (numValue === minValue) {
-              row[`highlight${i}`] = 'min-value'
-            }
+          if (v !== null && Number(v) === maxValue) {
+            row[`highlight${i}`] = 'max-value'
+          } else if (v !== null && Number(v) === minValue) {
+            row[`highlight${i}`] = 'min-value'
           }
         })
       }
@@ -397,9 +368,8 @@ function getNestedValue(obj: any, path: string) {
   return path.split('.').reduce((current, key) => current?.[key], obj)
 }
 
-// 获取行类名（用于分类分隔线）
+// 获取行类名
 function getRowClassName({ row, rowIndex }: any) {
-  if (rowIndex === 0) return ''
   return row.category !== comparisonTableData.value[rowIndex - 1]?.category
     ? 'category-divider'
     : ''
@@ -408,47 +378,63 @@ function getRowClassName({ row, rowIndex }: any) {
 
 <style scoped>
 .compare-container {
-  padding: 24px;
-  background-color: #f5f7fa;
-  min-height: calc(100vh - 60px);
+  padding: 20px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.back-button {
+  /* 让返回按钮稍微突出一点 */
+  border: 1px solid #dcdfe6;
+}
+
+.back-button:hover {
+  color: #409eff;
+  border-color: #409eff;
+}
+
+.header-right {
+  display: flex;
+  gap: 10px;
 }
 
 .page-header h2 {
   margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 24px;
+  color: #333;
 }
 
 .selection-card {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
-  font-size: 16px;
 }
 
 .experiment-selectors {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .selector-item {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -462,152 +448,69 @@ function getRowClassName({ row, rowIndex }: any) {
   flex: 1;
 }
 
-.experiment-option {
-  padding: 4px 0;
-}
-
-.experiment-option .exp-code {
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.experiment-option .exp-info {
-  font-size: 12px;
-  color: #909399;
-}
-
 .action-buttons {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  padding-top: 24px;
-  border-top: 1px solid #ebeef5;
+  gap: 15px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
 }
 
 .comparison-card {
-  margin-top: 24px;
-}
-
-.legend {
-  display: flex;
-  gap: 24px;
-  font-size: 14px;
-  font-weight: normal;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.legend-color {
-  width: 24px;
-  height: 16px;
-  border-radius: 4px;
-}
-
-.legend-color.max {
-  background-color: #FFF3E0;
-  border: 1px solid #FF6F00;
-}
-
-.legend-color.min {
-  background-color: #E8F5E9;
-  border: 1px solid #2E7D32;
+  margin-top: 20px;
 }
 
 .experiment-header {
   text-align: center;
-  padding: 4px 0;
 }
 
 .exp-code {
-  font-weight: 600;
-  font-size: 13px;
-  color: #303133;
+  font-weight: bold;
+  font-size: 14px;
   margin-bottom: 4px;
 }
 
 .exp-date {
   font-size: 12px;
-  color: #909399;
-}
-
-.field-name-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.field-name-cell strong {
-  color: #303133;
+  color: #999;
 }
 
 .cell-content {
-  padding: 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   transition: all 0.3s;
-  font-weight: 500;
 }
 
 .cell-content.max-value {
   background-color: #FFF3E0;
   color: #FF6F00;
-  font-weight: 700;
+  font-weight: bold;
 }
 
 .cell-content.min-value {
   background-color: #E8F5E9;
   color: #2E7D32;
-  font-weight: 700;
+  font-weight: bold;
 }
 
 .unit {
   margin-left: 4px;
-  color: #909399;
+  color: #999;
   font-size: 12px;
-  font-weight: normal;
 }
 
-/* 分类分隔线 */
 :deep(.category-divider) {
   border-top: 2px solid #409eff;
 }
 
 :deep(.el-table th) {
   background-color: #f5f7fa;
-  font-weight: 600;
 }
 
-:deep(.el-table) {
-  font-size: 14px;
-}
-
-:deep(.el-table td) {
-  padding: 12px 0;
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .compare-container {
-    padding: 16px;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .selector-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .selector-label {
-    min-width: auto;
-  }
+.chart-view {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
