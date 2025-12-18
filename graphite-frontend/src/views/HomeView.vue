@@ -190,7 +190,8 @@ import {
   FolderOpened,
   Plus,
   Setting,
-  Edit  // ✅ 新增：未完成实验图标
+  Edit,  // ✅ 新增：未完成实验图标
+  Download  // ✅ 新增：数据库备份图标
 } from '@element-plus/icons-vue'
 
 // ECharts 按需导入 - 优化打包体积
@@ -300,8 +301,8 @@ const menuItems = [
   },
   {
     id: 'analysis',
-    title: '数据对比与分析',
-    description: '实验数据的统计分析和对比',
+    title: '实验数据对比',
+    description: '实验数据的对比',
     icon: DataAnalysis,
     iconClass: 'analysis-icon',
     route: '/experiments/compare',
@@ -315,6 +316,17 @@ const menuItems = [
     icon: Setting,
     iconClass: 'admin-icon',
     route: '/admin/users',
+    roles: ['admin'],
+    disabled: false
+  }, // <--- 这里必须有逗号
+  // ✅ 新增：数据库备份菜单项
+  {
+    id: 'backup',
+    title: '数据库备份',
+    description: '数据库备份和恢复管理',
+    icon: Download,
+    iconClass: 'backup-icon',
+    route: '/admin/backup',
     roles: ['admin'],
     disabled: false
   }
@@ -917,6 +929,10 @@ onBeforeUnmount(() => {
   color: #F56C6C;
 }
 
+/* ✅ 新增：备份图标颜色 */
+.backup-icon {
+  color: #9C27B0;  /* 紫色 */
+}
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .menu-grid {

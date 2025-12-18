@@ -1,15 +1,25 @@
 <template>
   <div class="user-management">
-    <!-- 页面标题 -->
     <div class="page-header">
-      <h2>用户管理</h2>
+      <div class="header-left">
+        <el-button
+          @click="handleGoBack"
+          class="back-button"
+        >
+          <el-icon style="margin-right: 4px;"><ArrowLeft /></el-icon>
+          返回主页
+        </el-button>
+
+        <el-divider direction="vertical" />
+
+        <h2>用户管理</h2>
+      </div>
       <el-button type="primary" @click="handleAddUser">
         <el-icon><Plus /></el-icon>
         添加用户
       </el-button>
     </div>
 
-    <!-- 统计卡片 -->
     <el-row :gutter="20" class="statistics-cards">
       <el-col :span="6">
         <el-card shadow="hover">
@@ -57,7 +67,6 @@
       </el-col>
     </el-row>
 
-    <!-- 搜索和筛选 -->
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="搜索">
@@ -93,7 +102,6 @@
       </el-form>
     </el-card>
 
-    <!-- 用户列表 -->
     <el-card class="table-card">
       <el-table
         v-loading="loading"
@@ -150,7 +158,6 @@
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
       <div class="pagination-container">
         <el-pagination
           v-model:current-page="pagination.page"
@@ -164,7 +171,6 @@
       </div>
     </el-card>
 
-    <!-- 添加/编辑用户对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="isEditMode ? '编辑用户' : '添加用户'"
@@ -221,7 +227,6 @@
       </template>
     </el-dialog>
 
-    <!-- 重置密码对话框 -->
     <el-dialog
       v-model="passwordDialogVisible"
       title="重置密码"
@@ -263,6 +268,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Plus,
@@ -270,7 +276,8 @@ import {
   UserFilled,
   CircleCheck,
   User,
-  Lock
+  Lock,
+  ArrowLeft // ✅ 新增图标导入
 } from '@element-plus/icons-vue'
 import {
   getUserList,
@@ -291,6 +298,8 @@ import type {
 import { ROLE_LABELS, ROLE_COLORS } from '@/types/admin'
 
 // ==================== 数据 ====================
+
+const router = useRouter() // ✅ 路由实例
 
 // 用户列表
 const userList = ref<UserType[]>([])
@@ -349,17 +358,26 @@ const passwordForm = reactive({
 // 提交状态
 const submitting = ref(false)
 
-// ==================== 表单验证规则（完善版）====================
+// ==================== 页面导航 ====================
 
-// ✅ 用户表单验证规则
+/**
+ * ✅ 返回主页（上一页）
+ */
+function handleGoBack() {
+  router.back()
+}
+
+// ==================== 表单验证规则 ====================
+
+// 用户表单验证规则
 const userFormRules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 50, message: '用户名长度为 3-50 个字符', trigger: 'blur' },
-    { 
-      pattern: /^[a-zA-Z0-9_]+$/, 
-      message: '用户名只能包含字母、数字和下划线', 
-      trigger: 'blur' 
+    {
+      pattern: /^[a-zA-Z0-9_]+$/,
+      message: '用户名只能包含字母、数字和下划线',
+      trigger: 'blur'
     }
   ],
   password: [
@@ -368,10 +386,10 @@ const userFormRules: FormRules = {
     { max: 50, message: '密码长度不能超过 50 个字符', trigger: 'blur' }
   ],
   email: [
-    { 
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
-      message: '请输入正确的邮箱格式', 
-      trigger: 'blur' 
+    {
+      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: '请输入正确的邮箱格式',
+      trigger: 'blur'
     }
   ],
   real_name: [
@@ -382,7 +400,7 @@ const userFormRules: FormRules = {
   ]
 }
 
-// ✅ 密码重置表单验证规则
+// 密码重置表单验证规则
 const passwordFormRules: FormRules = {
   new_password: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
@@ -391,22 +409,22 @@ const passwordFormRules: FormRules = {
   ],
   confirm_password: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
-    { 
+    {
       validator: (rule, value, callback) => {
         if (value !== passwordForm.new_password) {
           callback(new Error('两次输入的密码不一致'))
         } else {
           callback()
         }
-      }, 
-      trigger: 'blur' 
+      },
+      trigger: 'blur'
     }
   ]
 }
 
 // ==================== 方法 ====================
 
-// ✅ 加载用户列表（优化错误处理）
+// 加载用户列表
 const loadUserList = async () => {
   try {
     loading.value = true
@@ -421,7 +439,6 @@ const loadUserList = async () => {
     userList.value = response.users
     pagination.total = response.total
   } catch (error: any) {
-    // ✅ 拦截器已处理错误提示，这里只记录日志
     if (!error.handled) {
       console.error('加载用户列表失败:', error)
       ElMessage.error('加载用户列表失败')
@@ -431,12 +448,11 @@ const loadUserList = async () => {
   }
 }
 
-// ✅ 加载统计信息（静默失败）
+// 加载统计信息
 const loadStatistics = async () => {
   try {
     statistics.value = await getUserStatistics()
   } catch (error: any) {
-    // ✅ 统计信息加载失败不显示错误（静默失败）
     if (!error.handled) {
       console.error('加载统计信息失败:', error)
     }
@@ -500,17 +516,15 @@ const handleEdit = (user: UserType) => {
   dialogVisible.value = true
 }
 
-// ✅ 提交表单（优化错误处理）
+// 提交表单
 const handleSubmit = async () => {
   if (!userFormRef.value) return
-  
+
   try {
-    // 表单验证
     await userFormRef.value.validate()
     submitting.value = true
-    
+
     if (isEditMode.value && currentUserId.value) {
-      // 编辑模式
       const data: UpdateUserRequest = {
         real_name: userForm.real_name,
         email: userForm.email,
@@ -520,7 +534,6 @@ const handleSubmit = async () => {
       await updateUser(currentUserId.value, data)
       ElMessage.success('用户信息更新成功')
     } else {
-      // 新增模式
       const data: CreateUserRequest = {
         username: userForm.username!,
         password: userForm.password!,
@@ -532,12 +545,11 @@ const handleSubmit = async () => {
       await createUser(data)
       ElMessage.success('用户创建成功')
     }
-    
+
     dialogVisible.value = false
     loadUserList()
     loadStatistics()
   } catch (error: any) {
-    // ✅ 拦截器已处理错误提示，这里不再重复
     if (!error.handled) {
       console.error('操作失败:', error)
       ElMessage.error('操作失败，请重试')
@@ -560,22 +572,21 @@ const handleResetPassword = (user: UserType) => {
   passwordDialogVisible.value = true
 }
 
-// ✅ 提交密码重置（优化错误处理）
+// 提交密码重置
 const handleSubmitPassword = async () => {
   if (!passwordFormRef.value || !currentUserId.value) return
-  
+
   try {
     await passwordFormRef.value.validate()
     submitting.value = true
-    
+
     await resetUserPassword(currentUserId.value, {
       new_password: passwordForm.new_password
     })
-    
+
     ElMessage.success('密码重置成功')
     passwordDialogVisible.value = false
   } catch (error: any) {
-    // ✅ 拦截器已处理错误提示
     if (!error.handled) {
       console.error('密码重置失败:', error)
       ElMessage.error('密码重置失败，请重试')
@@ -590,7 +601,7 @@ const handlePasswordDialogClose = () => {
   passwordFormRef.value?.resetFields()
 }
 
-// ✅ 切换用户状态（优化错误处理）
+// 切换用户状态
 const handleToggleStatus = async (user: UserType) => {
   const action = user.is_active ? '禁用' : '启用'
   try {
@@ -603,17 +614,13 @@ const handleToggleStatus = async (user: UserType) => {
         type: 'warning'
       }
     )
-    
+
     await toggleUserStatus(user.id, { is_active: !user.is_active })
     ElMessage.success(`${action}成功`)
     loadUserList()
     loadStatistics()
   } catch (error: any) {
-    // 用户取消操作
-    if (error === 'cancel') {
-      return
-    }
-    // ✅ 拦截器已处理错误提示
+    if (error === 'cancel') return
     if (!error.handled) {
       console.error(`${action}失败:`, error)
       ElMessage.error(`${action}失败，请重试`)
@@ -621,7 +628,7 @@ const handleToggleStatus = async (user: UserType) => {
   }
 }
 
-// ✅ 删除用户（优化错误处理）
+// 删除用户
 const handleDelete = async (user: UserType) => {
   try {
     await ElMessageBox.confirm(
@@ -633,17 +640,13 @@ const handleDelete = async (user: UserType) => {
         type: 'warning'
       }
     )
-    
+
     await deleteUser(user.id)
     ElMessage.success('用户已删除')
     loadUserList()
     loadStatistics()
   } catch (error: any) {
-    // 用户取消操作
-    if (error === 'cancel') {
-      return
-    }
-    // ✅ 拦截器已处理错误提示
+    if (error === 'cancel') return
     if (!error.handled) {
       console.error('删除失败:', error)
       ElMessage.error('删除失败，请重试')
@@ -692,6 +695,25 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+
+  // ✅ 头部左侧布局样式
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .back-button {
+      font-weight: normal;
+      padding: 8px 15px;
+      transition: all 0.3s;
+
+      &:hover {
+        background-color: #f5f7fa;
+        border-color: #409eff;
+        color: #409eff;
+      }
+    }
+  }
 
   h2 {
     margin: 0;

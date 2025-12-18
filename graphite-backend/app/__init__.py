@@ -3,11 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_marshmallow import Marshmallow
-from dotenv import load_dotenv  # ✅ 新增：加载环境变量
+from dotenv import load_dotenv
 import os
 from datetime import timedelta
 
-# ✅ 新增：加载.env文件（必须在应用创建之前）
+# ✅ 加载.env文件（必须在应用创建之前）
 load_dotenv()
 
 # 初始化扩展
@@ -36,37 +36,26 @@ def create_app(config_name='development'):
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
     
-    # ========== 🔧 文件上传配置 - 生产级 ==========
-    # 获取项目基础目录
+    # ========== 文件上传配置 ==========
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    
-    # 文件存储根目录 - 从环境变量读取，默认为相对路径 'uploads'
     app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER') or os.path.join(BASE_DIR, 'uploads')
-    
-    # 文件大小限制 - 从环境变量读取，默认10MB
     app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 10 * 1024 * 1024))
-    
-    # 文件URL前缀 - 用于生成文件访问URL
     app.config['FILE_URL_PREFIX'] = os.environ.get('FILE_URL_PREFIX') or '/files'
-    
-    # 允许的文件扩展名
     app.config['ALLOWED_EXTENSIONS'] = {
-        'png', 'jpg', 'jpeg', 'gif',    # 图片
-        'pdf',                           # PDF
-        'doc', 'docx',                  # Word
-        'xls', 'xlsx'                   # Excel
+        'png', 'jpg', 'jpeg', 'gif',
+        'pdf',
+        'doc', 'docx',
+        'xls', 'xlsx'
     }
-    # ===============================================
     
     # 初始化扩展
     db.init_app(app)
     jwt.init_app(app)
     ma.init_app(app)
     
-    # ========== 🔧 CORS配置 - 支持API和文件访问 ==========
+    # ========== CORS配置 ==========
     CORS(app, 
          resources={
-             # API路由的CORS配置
              r"/api/*": {
                  "origins": ["http://localhost:5173", "http://localhost:3000"],
                  "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -75,7 +64,6 @@ def create_app(config_name='development'):
                  "supports_credentials": True,
                  "max_age": 3600
              },
-             # ✅ 新增：文件访问路由的CORS配置
              r"/files/*": {
                  "origins": ["http://localhost:5173", "http://localhost:3000"],
                  "methods": ["GET", "OPTIONS"],
@@ -83,9 +71,8 @@ def create_app(config_name='development'):
                  "max_age": 3600
              }
          })
-    # ====================================================
     
-    # 注册蓝图
+    # ========== 注册蓝图 ==========
     print("=" * 60)
     print("📦 开始注册蓝图...")
     print("=" * 60)
@@ -114,13 +101,29 @@ def create_app(config_name='development'):
         import traceback
         print("   详细错误:")
         traceback.print_exc()
-        # 创建一个空的蓝图作为占位符，避免后续注册失败
         from flask import Blueprint
         admin_bp = Blueprint('admin_placeholder', __name__)
         print("⚠️  已创建占位符蓝图")
     
     from app.routes.compare import compare_bp
     print("✅ compare_bp 导入成功")
+    
+    # ✅ 符合项目规范：在函数内部导入 backup_bp
+    print("\n🔍 尝试导入 backup_bp...")
+    try:
+        from app.routes.backup import backup_bp
+        print("✅ backup_bp 导入成功！")
+        print(f"   - 蓝图名称: {backup_bp.name}")
+        print(f"   - 蓝图对象: {backup_bp}")
+    except Exception as e:
+        print(f"❌ backup_bp 导入失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+        from flask import Blueprint
+        backup_bp = Blueprint('backup_placeholder', __name__)
+        print("⚠️  已创建占位符蓝图")
     
     print("\n" + "=" * 60)
     print("📝 开始注册蓝图到应用...")
@@ -142,10 +145,9 @@ def create_app(config_name='development'):
     try:
         app.register_blueprint(admin_bp, url_prefix='/api/admin')
         print("✅ admin_bp 注册成功 -> /api/admin")
-        # 打印 admin_bp 的所有路由
         print("   已注册的 admin 路由:")
         for rule in app.url_map.iter_rules():
-            if rule.rule.startswith('/api/admin'):
+            if rule.rule.startswith('/api/admin') and 'backup' not in rule.rule:
                 print(f"      {rule.methods} {rule.rule}")
     except Exception as e:
         print(f"❌ admin_bp 注册失败！")
@@ -157,11 +159,27 @@ def create_app(config_name='development'):
     app.register_blueprint(compare_bp, url_prefix='/api/compare')
     print("✅ compare_bp 注册成功 -> /api/compare")
     
+    # ✅ 符合项目规范：在register_blueprint时设置url_prefix
+    print("\n🔍 尝试注册 backup_bp...")
+    try:
+        app.register_blueprint(backup_bp, url_prefix='/api/admin/backup')
+        print("✅ backup_bp 注册成功 -> /api/admin/backup")
+        print("   已注册的 backup 路由:")
+        for rule in app.url_map.iter_rules():
+            if 'backup' in rule.rule:
+                print(f"      {rule.methods} {rule.rule}")
+    except Exception as e:
+        print(f"❌ backup_bp 注册失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+    
     print("\n" + "=" * 60)
     print("✅ 所有蓝图注册完成！")
     print("=" * 60 + "\n")
     
-    # 错误处理
+    # ========== 错误处理 ==========
     @app.errorhandler(404)
     def not_found(error):
         return {'error': 'Not found'}, 404

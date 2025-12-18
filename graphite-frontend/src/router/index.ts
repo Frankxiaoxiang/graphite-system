@@ -76,6 +76,13 @@ const router = createRouter({
       name: 'user-management',
       component: () => import('@/views/admin/UserManagement.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    // ✅ 新增：数据库备份路由
+    {
+      path: '/admin/backup',
+      name: 'database-backup',
+      component: () => import('@/views/admin/DatabaseBackup.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
