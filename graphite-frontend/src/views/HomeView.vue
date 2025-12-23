@@ -310,6 +310,16 @@ const menuItems = [
     disabled: false
   },
   {
+  id: 'regression',
+  title: '数据回归分析',
+  description: '实验数据的统计分析与回归',
+  icon: TrendCharts,  // 使用趋势图标
+  iconClass: 'regression-icon',
+  route: '/analysis',
+  roles: ['admin', 'engineer'],
+  disabled: false
+  },
+  {
     id: 'admin',
     title: '用户管理',
     description: '用户管理和权限配置',
@@ -923,6 +933,10 @@ onBeforeUnmount(() => {
 
 .analysis-icon {
   color: #E6A23C;
+}
+
+.regression-icon {
+  color: #9C27B0;  /* 紫色，与数据对比区分 */
 }
 
 .admin-icon {

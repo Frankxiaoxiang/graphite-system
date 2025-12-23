@@ -16,6 +16,16 @@ const router = createRouter({
       component: () => import('@/views/HomeView.vue'),
       meta: { requiresAuth: true }
     },
+    // ✅ 新增：数据分析路由 (仅管理员和工程师)
+    {
+      path: '/analysis',
+      name: 'DataAnalysis',
+      component: () => import('@/views/analysis/DataAnalysis.vue'),
+      meta: {
+        requiresAuth: true,
+        roles: ['admin', 'engineer'] // 修正为 roles 以匹配现有守卫逻辑
+      }
+    },
     {
       path: '/experiments',
       name: 'experiments',
@@ -51,9 +61,9 @@ const router = createRouter({
           path: 'compare',
           name: 'experiment-compare',
           component: () => import('@/views/experiments/ExperimentCompare.vue'),
-          meta: { 
+          meta: {
             title: '实验数据对比',
-            requiresAuth: true, 
+            requiresAuth: true,
             roles: ['admin', 'engineer']
           }
         },
@@ -77,7 +87,6 @@ const router = createRouter({
       component: () => import('@/views/admin/UserManagement.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
     },
-    // ✅ 新增：数据库备份路由
     {
       path: '/admin/backup',
       name: 'database-backup',

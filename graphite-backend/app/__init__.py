@@ -124,6 +124,22 @@ def create_app(config_name='development'):
         from flask import Blueprint
         backup_bp = Blueprint('backup_placeholder', __name__)
         print("⚠️  已创建占位符蓝图")
+
+    # ✅ 新增：导入 analysis_bp
+    print("\n🔍 尝试导入 analysis_bp...")
+    try:
+        from app.routes.analysis import analysis_bp
+        print("✅ analysis_bp 导入成功！")
+        print(f"   - 蓝图名称: {analysis_bp.name}")
+    except Exception as e:
+        print(f"❌ analysis_bp 导入失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+        from flask import Blueprint
+        analysis_bp = Blueprint('analysis_placeholder', __name__)
+        print("⚠️  已创建占位符蓝图")
     
     print("\n" + "=" * 60)
     print("📝 开始注册蓝图到应用...")
@@ -170,6 +186,18 @@ def create_app(config_name='development'):
                 print(f"      {rule.methods} {rule.rule}")
     except Exception as e:
         print(f"❌ backup_bp 注册失败！")
+        print(f"   错误信息: {e}")
+        import traceback
+        print("   详细错误:")
+        traceback.print_exc()
+
+    # ✅ 新增：注册 analysis_bp
+    print("\n🔍 尝试注册 analysis_bp...")
+    try:
+        app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
+        print("✅ analysis_bp 注册成功 -> /api/analysis")
+    except Exception as e:
+        print(f"❌ analysis_bp 注册失败！")
         print(f"   错误信息: {e}")
         import traceback
         print("   详细错误:")
