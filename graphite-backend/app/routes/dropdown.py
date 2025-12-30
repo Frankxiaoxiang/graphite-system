@@ -6,6 +6,7 @@
 # - Removed approval workflow
 # - Simplified API responses
 # - ✅ FIXED: Added /search/<field_name> endpoint with CORS support
+# - ✅ FIXED: Added POST /options endpoint for frontend compatibility
 # ========================================
 
 from flask import Blueprint, request, jsonify
@@ -127,10 +128,119 @@ def search_dropdown_options(field_name):
         return jsonify({'error': '搜索失败', 'message': str(e)}), 500
 
 
-@dropdown_bp.route('/options', methods=['GET'])
-@jwt_required()
-def get_dropdown_options():
-    """Get dropdown options (query parameter version, kept for compatibility)"""
+# ✅ 修复：支持 GET 和 POST /options（前端兼容性）
+@dropdown_bp.route('/options', methods=['GET', 'POST', 'OPTIONS'])
+@jwt_required(optional=True)  # OPTIONS和某些GET请求可能不需要JWT
+def manage_dropdown_options():
+    """
+    GET: Get dropdown options (query parameter version)
+    POST: Add new dropdown option (frontend API compatibility)
+    OPTIONS: Handle CORS preflight
+    """
+    # ✅ Handle OPTIONS preflight request
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    # ✅ Handle POST request - Add new option
+    if request.method == 'POST':
+        try:
+            # Verify JWT for POST requests
+            verify_jwt_in_request()
+            current_user_id = get_jwt_identity()
+            
+            if not current_user_id:
+                return jsonify({'error': '需要登录'}), 401
+            
+            user = User.query.get(current_user_id)
+            if not user:
+                return jsonify({'error': '用户不存在'}), 404
+            
+            data = request.get_json()
+            
+            # ✅ 添加详细日志 - 查看前端发送的完整数据
+            print(f"📦 收到的完整请求数据: {data}")
+            print(f"📦 Content-Type: {request.content_type}")
+            print(f"📦 Request body (raw): {request.get_data()}")
+            
+            # ✅ 兼容两种命名格式：fieldName (驼峰) 和 field_name (下划线)
+            field_name = data.get('field_name') or data.get('fieldName')
+            # ⚠️ 注意：前端发送的是 'value' 和 'label'，需要映射到数据库字段
+            option_value = data.get('value') or data.get('option_value')
+            option_label = data.get('label') or data.get('option_label') or option_value
+            
+            print(f"📝 添加选项请求: field={field_name}, value={option_value}, label={option_label}")
+            
+            # Validate required fields
+            if not all([field_name, option_value]):
+                error_msg = f'字段名和选项值不能为空 (field_name={field_name}, value={option_value})'
+                print(f"❌ 验证失败: {error_msg}")
+                return jsonify({'error': error_msg}), 400
+            
+            # Check field configuration
+            field_config = DropdownField.query.filter_by(field_name=field_name).first()
+            if not field_config:
+                return jsonify({'error': '字段不存在'}), 400
+            
+            # Check if field type is searchable
+            if field_config.field_type == 'fixed':
+                return jsonify({'error': '固定字段不能添加选项'}), 400
+            
+            # Check if option already exists
+            existing = DropdownOption.query.filter_by(
+                field_name=field_name,
+                option_value=option_value
+            ).first()
+            
+            if existing:
+                return jsonify({'error': '选项已存在'}), 400
+            
+            # Get next sort order
+            max_sort = db.session.query(db.func.max(DropdownOption.sort_order)).filter_by(
+                field_name=field_name
+            ).scalar() or 0
+            
+            # Add option directly (no approval needed)
+            option = DropdownOption(
+                field_name=field_name,
+                option_value=option_value,
+                option_label=option_label,
+                sort_order=max_sort + 1,
+                created_by=current_user_id
+            )
+            db.session.add(option)
+            db.session.commit()
+            
+            print(f"✅ 选项添加成功: ID={option.id}, value={option.option_value}")
+            
+            # Log action (optional)
+            try:
+                SystemLog.log_action(
+                    user_id=current_user_id,
+                    action='add_dropdown_option',
+                    description=f'添加选项: {field_name} - {option_label}',
+                    ip_address=request.remote_addr
+                )
+            except:
+                pass
+            
+            return jsonify({
+                'success': True,
+                'message': '选项添加成功',
+                'option': {
+                    'id': option.id,
+                    'value': option.option_value,
+                    'label': option.option_label
+                }
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ 添加选项失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': '添加失败', 'message': str(e)}), 500
+    
+    # ✅ Handle GET request - Get options
     try:
         field_name = request.args.get('field_name')
         search = request.args.get('search', '')
@@ -164,6 +274,7 @@ def get_dropdown_options():
         return jsonify({'options': result}), 200
         
     except Exception as e:
+        print(f"❌ 获取选项失败: {str(e)}")
         return jsonify({'error': 'Failed to get options'}), 500
 
 
@@ -178,6 +289,9 @@ def add_dropdown_option():
     - Removed approval workflow
     - All users can add to searchable fields
     - Only check: field must be 'searchable' type
+    
+    NOTE: This endpoint is kept for backward compatibility.
+    Frontend should use POST /options instead.
     """
     # Handle OPTIONS preflight request
     if request.method == 'OPTIONS':
@@ -340,11 +454,12 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'ok',
-        'version': 'Phase 4A - Simplified + Search API Fix',
+        'version': 'Phase 4A - Simplified + Search API + POST /options Fix',
         'features': {
             'approval_workflow': False,
             'permission_checks': False,
             'all_users_can_add_searchable': True,
-            'search_api': True  # ✅ 新增
+            'search_api': True,
+            'post_options_api': True  # ✅ 新增
         }
     }), 200

@@ -63,7 +63,7 @@
         />
       </el-form-item>
 
-      <!-- PI膜型号 -->
+      <!-- ✅ 修改：PI膜型号 - 动态加载 -->
       <el-form-item label="PI膜型号">
         <el-select
           v-model="formData.piFilmModels"
@@ -71,16 +71,40 @@
           multiple
           collapse-tags
           collapse-tags-tooltip
+          filterable
+          :loading="piFilmModelLoading"
           @change="handlePiFilmModelsChange"
         >
-          <el-option label="GH-100" value="GH-100" />
-          <el-option label="TH-55" value="TH-55" />
-          <el-option label="NA-38" value="NA-38" />
-          <el-option label="PI-01" value="PI-01" />
+          <el-option
+            v-for="option in piFilmModelOptions"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
         </el-select>
       </el-form-item>
 
-      <!-- 烧制地点 -->
+      <!-- 石墨型号筛选 -->
+      <el-form-item label="石墨型号">
+        <el-select
+          v-model="formData.graphiteModels"
+          placeholder="选择石墨型号（可多选）"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          filterable
+          @change="handleGraphiteModelsChange"
+        >
+          <el-option
+            v-for="model in graphiteModelOptions"
+            :key="model"
+            :label="model"
+            :value="model"
+          />
+        </el-select>
+      </el-form-item>
+
+      <!-- ✅ 修正：烧制地点选项 -->
       <el-form-item label="烧制地点">
         <el-select
           v-model="formData.sinteringLocations"
@@ -89,9 +113,10 @@
           collapse-tags
           @change="handleSinteringLocationsChange"
         >
-          <el-option label="东莞" value="DG" />
-          <el-option label="苏州" value="SZ" />
-          <el-option label="深圳" value="ShenZ" />
+          <el-option label="DG：碳化（Dongguan） + 石墨化（Dongguan）" value="DG" />
+          <el-option label="XT：碳化（湘潭/Xiangtan） + 石墨化（湘潭/Xiangtan）" value="XT" />
+          <el-option label="DX：碳化（东莞/Dongguan） + 石墨化（湘潭/Xiangtan）" value="DX" />
+          <el-option label="WF：外发" value="WF" />
         </el-select>
       </el-form-item>
 
@@ -162,6 +187,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, RefreshLeft, QuestionFilled } from '@element-plus/icons-vue'
 import { getFieldOptions } from '@/api/analysis'
+import { dropdownApi } from '@/api/dropdown'  // ✅ 添加 dropdown API 导入
 import type { FieldOption } from '@/types/analysis'
 
 // Props
@@ -171,6 +197,7 @@ interface Props {
   dateStart?: string
   dateEnd?: string
   piFilmModels?: string[]
+  graphiteModels?: string[]
   sinteringLocations?: string[]
   excludeZero?: boolean
   enableOutlierDetection?: boolean
@@ -180,6 +207,7 @@ const props = withDefaults(defineProps<Props>(), {
   xField: '',
   yField: '',
   piFilmModels: () => [],
+  graphiteModels: () => [],
   sinteringLocations: () => [],
   excludeZero: true,
   enableOutlierDetection: true
@@ -192,6 +220,7 @@ const emit = defineEmits<{
   (e: 'update:dateStart', value: string | undefined): void
   (e: 'update:dateEnd', value: string | undefined): void
   (e: 'update:piFilmModels', value: string[]): void
+  (e: 'update:graphiteModels', value: string[]): void
   (e: 'update:sinteringLocations', value: string[]): void
   (e: 'update:excludeZero', value: boolean): void
   (e: 'update:enableOutlierDetection', value: boolean): void
@@ -203,6 +232,7 @@ const formData = ref({
   xField: props.xField,
   yField: props.yField,
   piFilmModels: props.piFilmModels,
+  graphiteModels: props.graphiteModels,
   sinteringLocations: props.sinteringLocations,
   excludeZero: props.excludeZero,
   enableOutlierDetection: props.enableOutlierDetection
@@ -214,10 +244,22 @@ const loading = ref(false)
 // 字段列表
 const fields = ref<FieldOption[]>([])
 
+// ✅ 新增：PI膜型号选项（动态加载）
+const piFilmModelOptions = ref<Array<{ value: string; label: string }>>([])
+const piFilmModelLoading = ref(false)
+
+// 石墨型号选项（17个型号）
+const graphiteModelOptions = ref([
+  'SGF-010', 'SGF-012', 'SGF-015', 'SGF-017', 'SGF-020',
+  'SGF-025', 'SGF-030', 'SGF-035', 'SGF-040', 'SGF-045',
+  'SGF-050', 'SGF-060', 'SGF-070', 'SGF-080', 'SGF-100',
+  'SGF-120', 'SGF-150'
+])
+
 // 按分类分组的字段
 const groupedFields = computed(() => {
   const groups: Record<string, { category: string; label: string; fields: FieldOption[] }> = {}
-  
+
   fields.value.forEach(field => {
     if (!groups[field.category]) {
       groups[field.category] = {
@@ -228,17 +270,42 @@ const groupedFields = computed(() => {
     }
     groups[field.category].fields.push(field)
   })
-  
+
   return Object.values(groups)
 })
 
-// 加载字段选项
+// ✅ 新增：加载PI膜型号选项
+async function loadPiFilmModelOptions() {
+  try {
+    piFilmModelLoading.value = true
+    console.log('📥 开始加载PI膜型号选项...')
+
+    const response = await dropdownApi.getOptions('pi_film_model')
+    piFilmModelOptions.value = response.map(option => ({
+      value: option.value,
+      label: option.label
+    }))
+
+    console.log(`✅ PI膜型号加载成功: ${piFilmModelOptions.value.length} 个选项`)
+  } catch (error) {
+    console.error('❌ 加载PI膜型号失败:', error)
+    ElMessage.error('加载PI膜型号列表失败')
+  } finally {
+    piFilmModelLoading.value = false
+  }
+}
+
+// 加载字段选项和PI膜型号
 onMounted(async () => {
   try {
+    // 加载分析字段选项
     const response = await getFieldOptions()
     fields.value = response.fields
+
+    // ✅ 加载PI膜型号选项
+    await loadPiFilmModelOptions()
   } catch (error) {
-    ElMessage.error('加载字段列表失败')
+    ElMessage.error('加载选项列表失败')
   }
 })
 
@@ -265,6 +332,10 @@ const handlePiFilmModelsChange = (value: string[]) => {
   emit('update:piFilmModels', value)
 }
 
+const handleGraphiteModelsChange = (value: string[]) => {
+  emit('update:graphiteModels', value)
+}
+
 const handleSinteringLocationsChange = (value: string[]) => {
   emit('update:sinteringLocations', value)
 }
@@ -286,17 +357,19 @@ const handleReset = () => {
     xField: '',
     yField: '',
     piFilmModels: [],
+    graphiteModels: [],
     sinteringLocations: [],
     excludeZero: true,
     enableOutlierDetection: true
   }
   dateRange.value = null
-  
+
   emit('update:xField', '')
   emit('update:yField', '')
   emit('update:dateStart', undefined)
   emit('update:dateEnd', undefined)
   emit('update:piFilmModels', [])
+  emit('update:graphiteModels', [])
   emit('update:sinteringLocations', [])
   emit('update:excludeZero', true)
   emit('update:enableOutlierDetection', true)

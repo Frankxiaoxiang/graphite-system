@@ -9,6 +9,7 @@ export interface ExperimentData {
   pi_film_model?: string
   experiment_date?: string
   sintering_location?: string
+  graphite_model?: string          // ✅ 新增：石墨型号（必填）
   material_type_for_firing?: string
   rolling_method?: string
   experiment_group?: number
@@ -20,8 +21,10 @@ export interface ExperimentData {
   pi_thickness_detail?: number
   pi_model_detail?: string
   pi_width?: number
-  batch_number?: string
+  pi_roll_batch_number?: string    // ✅ 改名：batch_number → pi_roll_batch_number
   pi_weight?: number
+  firing_rolls?: number             // ✅ 新增：烧制卷数
+  pi_notes?: string                 // ✅ 新增：PI膜补充说明
 
   // 松卷参数
   core_tube_type?: string
@@ -50,6 +53,7 @@ export interface ExperimentData {
   carbon_loading_photo?: any
   carbon_sample_photo?: any
   carbon_other_params?: any
+  carbon_notes?: string             // ✅ 新增：碳化补充说明
 
   // 石墨化参数
   graphite_furnace_num?: string
@@ -71,7 +75,8 @@ export interface ExperimentData {
   graphite_temp6?: number
   graphite_thickness6?: number
   graphite_max_temp?: number
-  foam_thickness?: number
+  inner_foaming_thickness?: number  // ✅ 改名：foam_thickness → inner_foaming_thickness
+  outer_foaming_thickness?: number  // ✅ 新增：卷外发泡厚度（必填）
   graphite_width?: number
   shrinkage_ratio?: number
   graphite_total_time?: number
@@ -81,12 +86,14 @@ export interface ExperimentData {
   graphite_loading_photo?: any
   graphite_sample_photo?: any
   graphite_other_params?: any
+  graphite_notes?: string           // ✅ 新增：石墨化补充说明
 
   // 压延参数
   rolling_machine_num?: string
   rolling_pressure?: number
   rolling_tension?: number
   rolling_speed?: number
+  rolling_notes?: string            // ✅ 新增：压延补充说明
 
   // 成品参数
   product_code?: string
@@ -105,6 +112,7 @@ export interface ExperimentData {
   defect_photo?: any
   sample_photo?: any
   other_files?: any
+  bond_strength?: number            // ✅ 新增：结合力
 
   // 系统字段
   status?: 'draft' | 'submitted' | 'reviewing' | 'approved'
@@ -135,6 +143,7 @@ export interface ExperimentSearchParams {
   status?: string
   customer_name?: string
   pi_film_model?: string
+  graphite_model?: string     // ✅ 新增：石墨型号筛选
   experiment_code?: string
   date_from?: string
   date_to?: string
@@ -257,6 +266,7 @@ class ExperimentApi {
     pi_film_model: string
     experiment_date: string
     sintering_location: string
+    graphite_model: string        // ✅ 新增：石墨型号参数
     material_type_for_firing: string
     rolling_method: string
     experiment_group: number

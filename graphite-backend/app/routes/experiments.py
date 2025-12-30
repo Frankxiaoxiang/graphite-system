@@ -171,6 +171,7 @@ def save_draft():
             pi_film_model=data['pi_film_model'],
             experiment_date=_parse_date(data['experiment_date']),
             sintering_location=data['sintering_location'],
+            graphite_model=data.get('graphite_model'),  # ✅ 新增字段
             material_type_for_firing=data['material_type_for_firing'],
             rolling_method=data['rolling_method'],
             experiment_group=data['experiment_group'],
@@ -344,6 +345,7 @@ def update_draft(experiment_id):
             pi_film_model=data['pi_film_model'],
             experiment_date=_parse_date(data['experiment_date']),
             sintering_location=data['sintering_location'],
+            graphite_model=data.get('graphite_model'),  # ✅ 新增字段
             material_type_for_firing=data['material_type_for_firing'],
             rolling_method=data['rolling_method'],
             experiment_group=data['experiment_group'],
@@ -778,6 +780,7 @@ def get_experiment(experiment_id):
                 'pi_film_model': experiment.basic.pi_film_model,
                 'experiment_date': experiment.basic.experiment_date.isoformat() if experiment.basic.experiment_date else None,
                 'sintering_location': experiment.basic.sintering_location,
+                'graphite_model': experiment.basic.graphite_model,  # ✅ 新增字段
                 'material_type_for_firing': experiment.basic.material_type_for_firing,
                 'rolling_method': experiment.basic.rolling_method,
                 'experiment_group': experiment.basic.experiment_group,
@@ -791,7 +794,7 @@ def get_experiment(experiment_id):
                 'pi_thickness_detail': float(experiment.pi.pi_thickness_detail) if experiment.pi.pi_thickness_detail else None,
                 'pi_model_detail': experiment.pi.pi_model_detail,
                 'pi_width': float(experiment.pi.pi_width) if experiment.pi.pi_width else None,
-                'batch_number': experiment.pi.batch_number,
+                'pi_roll_batch_number': experiment.pi.pi_roll_batch_number,
                 'pi_weight': float(experiment.pi.pi_weight) if experiment.pi.pi_weight else None
             }
         
@@ -861,7 +864,7 @@ def get_experiment(experiment_id):
                 'graphite_temp6': float(experiment.graphite.graphite_temp6) if experiment.graphite.graphite_temp6 else None,
                 'graphite_thickness6': float(experiment.graphite.graphite_thickness6) if experiment.graphite.graphite_thickness6 else None,
                 
-                'foam_thickness': float(experiment.graphite.foam_thickness) if experiment.graphite.foam_thickness else None,
+                'inner_foaming_thickness': float(experiment.graphite.inner_foaming_thickness) if experiment.graphite.inner_foaming_thickness else None,
                 'graphite_max_temp': float(experiment.graphite.graphite_max_temp) if experiment.graphite.graphite_max_temp else None,
                 'graphite_width': float(experiment.graphite.graphite_width) if experiment.graphite.graphite_width else None,
                 'shrinkage_ratio': float(experiment.graphite.shrinkage_ratio) if experiment.graphite.shrinkage_ratio else None,
@@ -1160,30 +1163,33 @@ def export_experiments():
 # 🆕 新增：辅助函数
 # ==========================================
 def _validate_all_required_fields(data):
-    """验证所有必填字段（32个）- v1.1更新：删除8个必填字段"""
+    """验证所有必填字段（40个）- v2.0更新：数据库schema变更"""
     required_fields = [
-        # 实验设计参数 (10个) - 无变化
+        # ===== 实验设计参数 (11个) - ✅ 新增 graphite_model =====
         'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
-        'experiment_date', 'sintering_location', 'material_type_for_firing',
-        'rolling_method', 'experiment_group', 'experiment_purpose',
+        'experiment_date', 'sintering_location', 'graphite_model',  # ✅ 新增
+        'material_type_for_firing', 'rolling_method', 'experiment_group', 
+        'experiment_purpose',
         
-        # PI膜参数 (4个) - 无变化
-        'pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 'pi_weight',
+        # ===== PI膜参数 (4个) - ✅ 改名 + 移除 pi_weight =====
+        'pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 
+        'pi_roll_batch_number',  # ✅ 改名（原batch_number）
+        # ❌ 删除 'pi_weight' - 改为非必填
         
-        # ✅ 碳化参数 (4个) - 减少3个必填字段
+        # ===== 碳化参数 (4个) - 无变化 =====
         'carbon_furnace_num', 'carbon_batch_num', 'carbon_max_temp', 'carbon_total_time',
-        # ❌ 删除：'carbon_film_thickness', 'carbon_weight', 'carbon_yield_rate'
         
-        # ✅ 石墨化参数 (7个) - 减少2个必填字段
-        'graphite_furnace_num', 'graphite_max_temp', 'foam_thickness', 
-        'graphite_width', 'shrinkage_ratio', 'graphite_total_time', 'graphite_weight',
-        # ❌ 删除：'pressure_value', 'graphite_yield_rate'
+        # ===== 石墨化参数 (6个) - ✅ 新增 outer_foaming_thickness，移除 2个 =====
+        'graphite_furnace_num', 'graphite_max_temp', 
+        'outer_foaming_thickness',  # ✅ 新增必填
+        'graphite_width', 'shrinkage_ratio', 'graphite_total_time',
+        # ❌ 删除 'inner_foaming_thickness' - 改为非必填
+        # ❌ 删除 'graphite_weight' - 改为非必填
         
-        # ✅ 产品参数 (7个) - 减少3个必填字段
+        # ===== 产品参数 (7个) - 无变化 =====
         'product_avg_thickness', 'product_spec', 'product_avg_density',
         'thermal_diffusivity', 'thermal_conductivity', 'specific_heat',
         'appearance_description'
-        # ❌ 删除：'cohesion', 'peel_strength', 'roughness'
     ]
     
     missing_fields = []
@@ -1197,7 +1203,6 @@ def _validate_all_required_fields(data):
         'missing_fields': missing_fields
     }
 
-
 # ========================================
 # 修复 _save_optional_modules 函数
 # 位置: experiments.py 第1000-1234行左右
@@ -1208,7 +1213,7 @@ def _save_optional_modules(experiment_id, data):
     
     # PI膜参数 - 只要有任意一个字段有值就保存
     pi_fields = ['pi_manufacturer', 'pi_thickness_detail', 'pi_model_detail', 
-                 'pi_width', 'batch_number', 'pi_weight', 'firing_rolls', 'pi_notes']
+                 'pi_width', 'pi_roll_batch_number', 'pi_weight', 'firing_rolls', 'pi_notes']
     if any(data.get(field) for field in pi_fields):
         pi = ExperimentPi(
             experiment_id=experiment_id,
@@ -1216,7 +1221,7 @@ def _save_optional_modules(experiment_id, data):
             pi_thickness_detail=data.get('pi_thickness_detail'),
             pi_model_detail=data.get('pi_model_detail'),
             pi_width=data.get('pi_width'),
-            batch_number=data.get('batch_number'),
+            pi_roll_batch_number=data.get('pi_roll_batch_number'),
             pi_weight=data.get('pi_weight'),
             firing_rolls=data.get('firing_rolls'),
             pi_notes=data.get('pi_notes')
@@ -1271,7 +1276,7 @@ def _save_optional_modules(experiment_id, data):
                        'graphite_temp1', 'graphite_thickness1', 'graphite_temp2', 'graphite_thickness2',
                        'graphite_temp3', 'graphite_thickness3', 'graphite_temp4', 'graphite_thickness4',
                        'graphite_temp5', 'graphite_thickness5', 'graphite_temp6', 'graphite_thickness6',
-                       'graphite_max_temp', 'foam_thickness', 'graphite_width', 'shrinkage_ratio',
+                       'graphite_max_temp', 'inner_foaming_thickness', 'outer_foaming_thickness', 'graphite_width', 'shrinkage_ratio',
                        'graphite_total_time', 'graphite_weight', 'graphite_yield_rate',
                        'graphite_min_thickness', 'graphite_notes']
     if any(data.get(field) for field in graphite_fields):
@@ -1296,7 +1301,8 @@ def _save_optional_modules(experiment_id, data):
             graphite_temp6=data.get('graphite_temp6'),
             graphite_thickness6=data.get('graphite_thickness6'),
             graphite_max_temp=data.get('graphite_max_temp'),
-            foam_thickness=data.get('foam_thickness'),
+            inner_foaming_thickness=data.get('inner_foaming_thickness'),
+            outer_foaming_thickness=data.get('outer_foaming_thickness'),
             graphite_width=data.get('graphite_width'),
             shrinkage_ratio=data.get('shrinkage_ratio'),
             graphite_total_time=data.get('graphite_total_time'),
@@ -1364,6 +1370,7 @@ def _save_all_modules(experiment_id, data):
         pi_film_model=data['pi_film_model'],
         experiment_date=_parse_date(data['experiment_date']),
         sintering_location=data['sintering_location'],
+        graphite_model=data.get('graphite_model'),  # ✅ 新增字段
         material_type_for_firing=data['material_type_for_firing'],
         rolling_method=data['rolling_method'],
         experiment_group=data['experiment_group'],
@@ -1378,8 +1385,8 @@ def _save_all_modules(experiment_id, data):
         pi_thickness_detail=data['pi_thickness_detail'],
         pi_model_detail=data['pi_model_detail'],
         pi_width=data.get('pi_width'),
-        batch_number=data.get('batch_number'),
-        pi_weight=data['pi_weight'],
+        pi_roll_batch_number=data.get('pi_roll_batch_number'),
+        pi_weight=data.get('pi_weight'),
         firing_rolls=data.get('firing_rolls'),
         pi_notes=data.get('pi_notes')
     )
@@ -1444,11 +1451,12 @@ def _save_all_modules(experiment_id, data):
         graphite_temp6=data.get('graphite_temp6'),             # 非必填
         graphite_thickness6=data.get('graphite_thickness6'),   # 非必填
         graphite_max_temp=data['graphite_max_temp'],           # ✅ 必填
-        foam_thickness=data['foam_thickness'],                 # ✅ 必填
+        inner_foaming_thickness=data['inner_foaming_thickness'],                 # ✅ 必填
+        outer_foaming_thickness=data['outer_foaming_thickness'],  # ✅ 新增必填字段
         graphite_width=data['graphite_width'],                 # ✅ 必填
         shrinkage_ratio=data['shrinkage_ratio'],               # ✅ 必填
         graphite_total_time=data['graphite_total_time'],       # ✅ 必填
-        graphite_after_weight=data['graphite_weight'],         # ✅ 必填
+        graphite_after_weight=data.get('graphite_weight'),     # ❌ 改为非必填
         graphite_yield_rate=data.get('graphite_yield_rate'),   # ❌ 改为非必填
         graphite_min_thickness=data.get('graphite_min_thickness'),  # 非必填
         graphite_notes=data.get('graphite_notes')              # 非必填

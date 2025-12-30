@@ -87,8 +87,9 @@ export interface AnalysisQueryParams {
   y_field: string
   date_start?: string
   date_end?: string
-  pi_film_model?: string     // 逗号分隔的型号列表
-  sintering_location?: string // 逗号分隔的地点列表
+  pi_film_model?: string      // 逗号分隔的PI膜型号列表
+  graphite_model?: string      // ✅ 新增：逗号分隔的石墨型号列表
+  sintering_location?: string  // 逗号分隔的烧制地点列表
   exclude_zero?: boolean
   enable_outlier_detection?: boolean
   outlier_method?: 'iqr' | 'zscore'
@@ -147,6 +148,7 @@ export interface AnalysisConfig {
       date_start?: string
       date_end?: string
       pi_film_models?: string[]
+      graphite_models?: string[]       // ✅ 新增：石墨型号筛选数组
       sintering_locations?: string[]
     }
     cleaning_options: {

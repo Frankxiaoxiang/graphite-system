@@ -39,6 +39,7 @@
             <div class="module-section">
               <h3 class="module-title">实验设计参数 (1/7)</h3>
               <div class="form-grid">
+                <!-- ✅ 去掉 .basic -->
                 <el-form-item label="PI膜厚度(μm)" prop="pi_film_thickness" required>
                   <SearchableSelect
                     v-model="formData.pi_film_thickness"
@@ -49,7 +50,6 @@
                   />
                 </el-form-item>
 
-                <!-- 客户类型 -->
                 <el-form-item label="客户类型" prop="customer_type" required>
                   <el-select v-model="formData.customer_type" placeholder="请选择客户类型">
                     <el-option
@@ -104,6 +104,22 @@
                   />
                 </el-form-item>
 
+                <el-form-item label="石墨型号" prop="graphite_model" required>
+                  <el-select
+                    v-model="formData.graphite_model"
+                    placeholder="请选择石墨型号"
+                    clearable
+                    filterable
+                  >
+                    <el-option
+                      v-for="model in graphiteModels"
+                      :key="model"
+                      :label="model"
+                      :value="model"
+                    />
+                  </el-select>
+                </el-form-item>
+
                 <el-form-item label="透烧材料类型" prop="material_type_for_firing" required>
                   <el-select v-model="formData.material_type_for_firing" placeholder="请选择透烧材料类型">
                     <el-option
@@ -112,18 +128,17 @@
                       :label="option.label"
                       :value="option.value"
                     />
-                    </el-select>
+                  </el-select>
                 </el-form-item>
 
-                <!-- 压延方式 -->
                 <el-form-item label="压延方式" prop="rolling_method" required>
                   <el-select v-model="formData.rolling_method" placeholder="请选择压延方式">
                     <el-option
-                    v-for="option in dropdownOptions.rolling_method"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
+                      v-for="option in dropdownOptions.rolling_method"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
                   </el-select>
                 </el-form-item>
 
@@ -149,7 +164,7 @@
             </div>
           </el-tab-pane>
 
-          <!-- 2. PI膜参数 -->
+        <!-- 2. PI膜参数 -->
           <el-tab-pane label="PI膜参数" name="pi">
             <div class="module-section">
               <h3 class="module-title">PI膜参数 (2/7)</h3>
@@ -193,17 +208,21 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="批次号" prop="batch_number">
-                  <el-input v-model="formData.batch_number" placeholder="请输入批次号" />
+                <!-- ✅ 改名：batch_number → pi_roll_batch_number -->
+                <el-form-item label="PI支料号/批次号" prop="pi_roll_batch_number" required>
+                  <el-input v-model="formData.pi_roll_batch_number" placeholder="请输入PI支料号/批次号" />
                 </el-form-item>
 
-                <el-form-item label="PI重量(kg)" prop="pi_weight" required>
+                <!-- ✅ 移除 required - 改为非必填 -->
+                <el-form-item label="PI重量(kg)" prop="pi_weight">
                   <el-input-number
                     v-model="formData.pi_weight"
                     :min="0"
                     :precision="3"
                     controls-position="right"
+                    placeholder="非必填"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <!-- ✅ 新增：烧制卷数 -->
@@ -468,7 +487,7 @@
             </div>
           </el-tab-pane>
 
-          <!-- 5. 石墨化参数 -->
+        <!-- 5. 石墨化参数 -->
           <el-tab-pane label="石墨化参数" name="graphite">
             <div class="module-section">
               <h3 class="module-title">石墨化参数 (5/7)</h3>
@@ -555,9 +574,22 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="发泡厚度(μm)" prop="foam_thickness" required>
+                <!-- ✅ 修改1：改名并改为非必填 -->
+                <el-form-item label="卷内发泡厚度(μm)" prop="inner_foaming_thickness">
                   <el-input-number
-                    v-model="formData.foam_thickness"
+                    v-model="formData.inner_foaming_thickness"
+                    :min="0"
+                    :precision="2"
+                    controls-position="right"
+                    placeholder="非必填"
+                  />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
+                </el-form-item>
+
+                <!-- ✅ 修改2：新增卷外发泡厚度（必填） -->
+                <el-form-item label="卷外发泡厚度(μm)" prop="outer_foaming_thickness" required>
+                  <el-input-number
+                    v-model="formData.outer_foaming_thickness"
                     :min="0"
                     :precision="2"
                     controls-position="right"
@@ -591,13 +623,16 @@
                   />
                 </el-form-item>
 
-                <el-form-item label="石墨化后重量(kg)" prop="graphite_weight" required>
+                <!-- ✅ 修改3：移除required，改为非必填 -->
+                <el-form-item label="石墨化后重量(kg)" prop="graphite_weight">
                   <el-input-number
                     v-model="formData.graphite_weight"
                     :min="0"
                     :precision="3"
                     controls-position="right"
+                    placeholder="非必填"
                   />
+                  <span style="color: #909399; font-size: 12px; margin-left: 10px;">非必填</span>
                 </el-form-item>
 
                 <!-- ✅ 修改：成碳率 - 改为非必填 -->
@@ -948,6 +983,7 @@ const formData = reactive({
   pi_film_model: '',
   experiment_date: '',
   sintering_location: '',
+  graphite_model: '',        // ✅ 新增：石墨型号（必填）
   material_type_for_firing: '',
   rolling_method: '',
   experiment_group: 1,
@@ -958,8 +994,8 @@ const formData = reactive({
   pi_thickness_detail: null,
   pi_model_detail: '',
   pi_width: null,
-  batch_number: '',
-  pi_weight: null,
+  pi_roll_batch_number: '',  // ✅ 改名：batch_number → pi_roll_batch_number
+  pi_weight: null,           // ✅ 已是非必填，保持不变
   // ✅ 新增字段
   firing_rolls: null,        // 烧制卷数
   pi_notes: '',              // PI膜补充说明
@@ -1014,12 +1050,13 @@ const formData = reactive({
   graphite_temp6: null,
   graphite_thickness6: null,
   graphite_max_temp: null,
-  foam_thickness: null,
+  inner_foaming_thickness: null,  // ✅ 改名：foam_thickness → inner_foaming_thickness
+  outer_foaming_thickness: null,  // ✅ 新增：卷外发泡厚度（必填）
   graphite_width: null,
   shrinkage_ratio: null,
   graphite_total_time: null,
-  graphite_weight: null,
-  graphite_yield_rate: null,
+  graphite_weight: null,          // ✅ 已改为非必填，保持不变
+  graphite_yield_rate: null,      // ✅ 已改为非必填，保持不变
   graphite_min_thickness: null,
   graphite_loading_photo: null,
   graphite_sample_photo: null,
@@ -1067,6 +1104,14 @@ const dropdownOptions = reactive({
   pi_thickness_detail: []
 })
 
+// ✅ 新增：石墨型号选项（17个型号）
+const graphiteModels = ref([
+  'SGF-010', 'SGF-012', 'SGF-015', 'SGF-017', 'SGF-020',
+  'SGF-025', 'SGF-030', 'SGF-035', 'SGF-040', 'SGF-045',
+  'SGF-050', 'SGF-060', 'SGF-070', 'SGF-080', 'SGF-100',
+  'SGF-120', 'SGF-150'
+])
+
 // 新增选项对话框
 const addOptionDialog = reactive({
   visible: false,
@@ -1083,6 +1128,7 @@ const formRules = {
   pi_film_model: [{ required: true, message: 'PI膜型号不能为空', trigger: 'change' }],
   experiment_date: [{ required: true, message: '实验申请日期不能为空', trigger: 'change' }],
   sintering_location: [{ required: true, message: '烧制地点不能为空', trigger: 'change' }],
+  graphite_model: [{ required: true, message: '石墨型号不能为空', trigger: 'change' }],  // ✅ 新增：石墨型号（必填）
   material_type_for_firing: [{ required: true, message: '透烧材料类型不能为空', trigger: 'change' }],
   rolling_method: [{ required: true, message: '压延方式不能为空', trigger: 'change' }],
   experiment_group: [{ required: true, message: '实验编组不能为空', trigger: 'change' }],
@@ -1091,7 +1137,12 @@ const formRules = {
   pi_manufacturer: [{ required: true, message: 'PI膜厂商不能为空', trigger: 'change' }],
   pi_thickness_detail: [{ required: true, message: 'PI膜初始厚度不能为空', trigger: 'change' }],
   pi_model_detail: [{ required: true, message: 'PI膜型号不能为空', trigger: 'change' }],
-  pi_weight: [{ required: true, message: 'PI重量不能为空', trigger: 'change' }],
+  pi_roll_batch_number: [{ required: true, message: 'PI支料号/批次号不能为空', trigger: 'change' }],  // ✅ 改名：batch_number → pi_roll_batch_number
+
+  // ✅ 改为非必填 - PI重量
+  pi_weight: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
 
   carbon_furnace_num: [{ required: true, message: '碳化炉编号不能为空', trigger: 'blur' }],
   carbon_batch_num: [{ required: true, message: '碳化炉次不能为空', trigger: 'change' }],
@@ -1121,11 +1172,22 @@ const formRules = {
   ],
 
   graphite_max_temp: [{ required: true, message: '石墨化最高温度不能为空', trigger: 'change' }],
-  foam_thickness: [{ required: true, message: '发泡厚度不能为空', trigger: 'change' }],
+
+  // ✅ 改名并改为非必填 - 卷内发泡厚度
+  inner_foaming_thickness: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
+
+  outer_foaming_thickness: [{ required: true, message: '卷外发泡厚度不能为空', trigger: 'change' }],  // ✅ 新增：卷外发泡厚度（必填）
+
   graphite_width: [{ required: true, message: '石墨宽幅不能为空', trigger: 'change' }],
   shrinkage_ratio: [{ required: true, message: '收缩比不能为空', trigger: 'change' }],
   graphite_total_time: [{ required: true, message: '石墨化总时长不能为空', trigger: 'change' }],
-  graphite_weight: [{ required: true, message: '石墨化后重量不能为空', trigger: 'change' }],
+
+  // ✅ 改为非必填 - 石墨化后重量
+  graphite_weight: [
+    { type: 'number', message: '必须是数字', trigger: 'blur' }
+  ],
 
   // ✅ 改为非必填 - 石墨化成碳率
   graphite_yield_rate: [
@@ -1153,7 +1215,6 @@ const formRules = {
   roughness: [],
 
   appearance_description: [{ required: true, message: '外观描述不能为空', trigger: 'blur' }],
-  experiment_summary: [{ required: true, message: '实验总结不能为空', trigger: 'blur' }],
 
   // ✅ 新增字段的验证规则（非必填）
   firing_rolls: [
@@ -1214,6 +1275,7 @@ async function loadDraftData(expId: number) {
       formData.pi_film_model = data.basic.pi_film_model
       formData.experiment_date = data.basic.experiment_date
       formData.sintering_location = data.basic.sintering_location
+      formData.graphite_model = data.basic.graphite_model  // ✅ 添加这行
       formData.material_type_for_firing = data.basic.material_type_for_firing
       formData.rolling_method = data.basic.rolling_method
       formData.experiment_group = data.basic.experiment_group
@@ -1226,7 +1288,7 @@ async function loadDraftData(expId: number) {
       formData.pi_thickness_detail = data.pi.pi_thickness_detail
       formData.pi_model_detail = data.pi.pi_model_detail
       formData.pi_width = data.pi.pi_width
-      formData.batch_number = data.pi.batch_number
+      formData.pi_roll_batch_number = data.pi.pi_roll_batch_number
       formData.pi_weight = data.pi.pi_weight
     }
 
@@ -1260,7 +1322,7 @@ async function loadDraftData(expId: number) {
       formData.carbon_total_time = data.carbon.carbon_total_time
       formData.carbon_weight = data.carbon.carbon_after_weight
       formData.carbon_yield_rate = data.carbon.carbon_yield_rate
-      
+
       // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
       // 注意：需要将相对路径转换为完整URL
       if (data.carbon.carbon_loading_photo) {
@@ -1273,7 +1335,7 @@ async function loadDraftData(expId: number) {
           type: data.carbon.carbon_loading_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.carbon.carbon_sample_photo) {
         formData.carbon_sample_photo = {
           id: String(data.carbon.carbon_sample_photo.file_id),
@@ -1284,7 +1346,7 @@ async function loadDraftData(expId: number) {
           type: data.carbon.carbon_sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.carbon.carbon_other_params) {
         formData.carbon_other_params = {
           id: String(data.carbon.carbon_other_params.file_id),
@@ -1321,14 +1383,15 @@ async function loadDraftData(expId: number) {
       formData.graphite_thickness6 = data.graphite.graphite_thickness6
 
       formData.graphite_max_temp = data.graphite.graphite_max_temp
-      formData.foam_thickness = data.graphite.foam_thickness
+      formData.inner_foaming_thickness = data.graphite.inner_foaming_thickness  // ✅ 改名
+      formData.outer_foaming_thickness = data.graphite.outer_foaming_thickness  // ✅ 新增
       formData.graphite_width = data.graphite.graphite_width
       formData.shrinkage_ratio = data.graphite.shrinkage_ratio
       formData.graphite_total_time = data.graphite.graphite_total_time
       formData.graphite_weight = data.graphite.graphite_after_weight
       formData.graphite_yield_rate = data.graphite.graphite_yield_rate
       formData.graphite_min_thickness = data.graphite.graphite_min_thickness
-      
+
       // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
       // 注意：需要将相对路径转换为完整URL
       if (data.graphite.graphite_loading_photo) {
@@ -1341,7 +1404,7 @@ async function loadDraftData(expId: number) {
           type: data.graphite.graphite_loading_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.graphite.graphite_sample_photo) {
         formData.graphite_sample_photo = {
           id: String(data.graphite.graphite_sample_photo.file_id),
@@ -1352,7 +1415,7 @@ async function loadDraftData(expId: number) {
           type: data.graphite.graphite_sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.graphite.graphite_other_params) {
         formData.graphite_other_params = {
           id: String(data.graphite.graphite_other_params.file_id),
@@ -1388,7 +1451,7 @@ async function loadDraftData(expId: number) {
       formData.appearance_description = data.product.appearance_desc
       formData.experiment_summary = data.product.experiment_summary
       formData.remarks = data.product.remarks
-      
+
       // ✅ 文件字段格式转换：后端格式 → FileUpload组件格式
       // 注意：需要将相对路径转换为完整URL
       if (data.product.appearance_defect_photo) {
@@ -1401,7 +1464,7 @@ async function loadDraftData(expId: number) {
           type: data.product.appearance_defect_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.product.sample_photo) {
         formData.sample_photo = {
           id: String(data.product.sample_photo.file_id),
@@ -1412,7 +1475,7 @@ async function loadDraftData(expId: number) {
           type: data.product.sample_photo.filename.split('.').pop()?.toLowerCase() || 'unknown'
         }
       }
-      
+
       if (data.product.other_files) {
         formData.other_files = {
           id: String(data.product.other_files.file_id),
@@ -1618,6 +1681,7 @@ function prepareSubmitData() {
     pi_film_model: formData.pi_film_model,
     experiment_date: formData.experiment_date,
     sintering_location: formData.sintering_location,
+    graphite_model: formData.graphite_model,  // ✅ 新增
     material_type_for_firing: formData.material_type_for_firing,
     rolling_method: formData.rolling_method,
     experiment_group: formData.experiment_group,
@@ -1628,7 +1692,7 @@ function prepareSubmitData() {
     pi_thickness_detail: formData.pi_thickness_detail,
     pi_model_detail: formData.pi_model_detail,
     pi_width: formData.pi_width,
-    batch_number: formData.batch_number,
+    pi_roll_batch_number: formData.pi_roll_batch_number,  // ✅ 改名
     pi_weight: formData.pi_weight,
     firing_rolls: formData.firing_rolls,
     pi_notes: formData.pi_notes,
@@ -1682,7 +1746,8 @@ function prepareSubmitData() {
     graphite_temp6: formData.graphite_temp6,
     graphite_thickness6: formData.graphite_thickness6,
     graphite_max_temp: formData.graphite_max_temp,
-    foam_thickness: formData.foam_thickness,
+    inner_foaming_thickness: formData.inner_foaming_thickness,  // ✅ 改名
+    outer_foaming_thickness: formData.outer_foaming_thickness,  // ✅ 新增
     graphite_width: formData.graphite_width,
     shrinkage_ratio: formData.shrinkage_ratio,
     graphite_total_time: formData.graphite_total_time,
@@ -1733,8 +1798,9 @@ async function handleSaveDraft() {
   // 1. 草稿只验证基本参数
   const basicFields = [
     'pi_film_thickness', 'customer_type', 'customer_name', 'pi_film_model',
-    'experiment_date', 'sintering_location', 'material_type_for_firing',
-    'rolling_method', 'experiment_group', 'experiment_purpose'
+    'experiment_date', 'sintering_location', 'graphite_model',  // ✅ 添加这个
+    'material_type_for_firing', 'rolling_method', 'experiment_group',
+    'experiment_purpose'
   ]
 
   // 检查基本字段是否填写完整
@@ -1878,9 +1944,12 @@ async function handleSubmit() {
       // 提取验证失败的字段名
       const fieldNames = Object.keys(error)
       const fieldLabels: Record<string, string> = {
+          // 基本参数
+        'graphite_model': '石墨型号',  // ✅ 新增
         'pi_manufacturer': 'PI膜厂商',
         'pi_thickness_detail': 'PI膜初始厚度',
         'pi_model_detail': 'PI膜型号',
+        'pi_roll_batch_number': 'PI支料号/批次号',  // ✅ 改名
         'pi_weight': 'PI重量',
         'carbon_furnace_num': '碳化炉编号',
         'carbon_batch_num': '碳化炉次',
@@ -1892,7 +1961,8 @@ async function handleSubmit() {
         'graphite_furnace_num': '石墨炉编号',
         'pressure_value': '气压值',
         'graphite_max_temp': '石墨化最高温度',
-        'foam_thickness': '发泡厚度',
+        'inner_foaming_thickness': '卷内发泡厚度',  // ✅ 改名
+        'outer_foaming_thickness': '卷外发泡厚度',  // ✅ 新增
         'graphite_width': '石墨宽幅',
         'shrinkage_ratio': '收缩比',
         'graphite_total_time': '石墨化总时长',

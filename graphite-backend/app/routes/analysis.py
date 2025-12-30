@@ -36,7 +36,10 @@ FIELD_METADATA = {
     'peel_strength': {'label': '剥离强度', 'unit': 'N/cm'},
     
     # PI膜参数
-    'pi_film_thickness': {'label': 'PI膜厚度', 'unit': 'μm'}
+    'pi_film_thickness': {'label': 'PI膜厚度', 'unit': 'μm'},
+    
+    # ✅ 新增：石墨型号（用于筛选分析）
+    'graphite_model': {'label': '石墨型号', 'unit': ''}
 }
 
 
@@ -124,18 +127,18 @@ def get_analysis_data():
                     params[f'model_{i}'] = model
                 print(f"✅ [DEBUG] 添加 pi_film_model 筛选: {models}")
         
-        # 烧制地点筛选
-        sintering_location = request.args.get('sintering_location')
-        print(f"📊 [DEBUG] sintering_location 原始值: {repr(sintering_location)}")
-        if sintering_location:
-            locations = [l.strip() for l in sintering_location.split(',') if l.strip()]
-            print(f"📊 [DEBUG] 解析后的 locations: {locations}")
-            if locations:
-                placeholders = ','.join([f':location_{i}' for i in range(len(locations))])
-                filters.append(f"sintering_location IN ({placeholders})")
-                for i, location in enumerate(locations):
-                    params[f'location_{i}'] = location
-                print(f"✅ [DEBUG] 添加 sintering_location 筛选: {locations}")
+        # ✅ 石墨型号筛选（替代烧制地点）
+        graphite_model = request.args.get('graphite_model')
+        print(f"📊 [DEBUG] graphite_model 原始值: {repr(graphite_model)}")
+        if graphite_model:
+            models = [m.strip() for m in graphite_model.split(',') if m.strip()]
+            print(f"📊 [DEBUG] 解析后的 models: {models}")
+            if models:
+                placeholders = ','.join([f':graphite_model_{i}' for i in range(len(models))])
+                filters.append(f"graphite_model IN ({placeholders})")
+                for i, model in enumerate(models):
+                    params[f'graphite_model_{i}'] = model
+                print(f"✅ [DEBUG] 添加 graphite_model 筛选: {models}")
         
         # 拼接 SQL
         if filters:
@@ -396,7 +399,8 @@ def get_field_options():
         'graphitization': '石墨化参数',
         'product': '成品参数',
         'pi_film': 'PI膜参数',
-        'rolling': '压延参数'
+        'rolling': '压延参数',
+        'basic': '基本参数'
     }
     
     # 字段分类
@@ -416,7 +420,10 @@ def get_field_options():
         'cohesion': 'product',
         'peel_strength': 'product',
         
-        'pi_film_thickness': 'pi_film'
+        'pi_film_thickness': 'pi_film',
+        
+        # ✅ 新增：石墨型号归类到基本参数
+        'graphite_model': 'basic'
     }
     
     for field_name, metadata in FIELD_METADATA.items():
