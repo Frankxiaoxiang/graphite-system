@@ -48,6 +48,7 @@
 
           <DataPreview
             v-if="analysisData"
+            :key="dataPreviewKey"
             :data="analysisData.data"
             :metadata="analysisData.metadata"
             :statistics="analysisData.statistics"
@@ -138,6 +139,9 @@ const loading = ref(false)
 const analysisData = ref<AnalysisDataResponse | null>(null)
 const regressionResult = ref<RegressionResult | null>(null)
 
+// 强制DataPreview重新渲染的key
+const dataPreviewKey = ref(0)
+
 // 计算有效数据点（用于回归分析）
 const validDataPoints = computed(() => {
   if (!analysisData.value) return []
@@ -174,6 +178,9 @@ const handleSearch = async () => {
     const response = await getAnalysisData(params)
     analysisData.value = response
 
+    // 强制重新渲染DataPreview组件
+    dataPreviewKey.value++
+
     // 检查有效数据点数量
     if (response.statistics.valid_count === 0) {
       ElMessage.warning('没有有效数据点，请调整筛选条件')
@@ -208,22 +215,53 @@ const handleDataUpdated = (updatedData: DataPoint[]) => {
  * 执行回归分析
  */
 const handleStartAnalysis = async () => {
-  if (validDataPoints.value.length < 2) {
-    ElMessage.warning('至少需要2个有效数据点才能进行回归分析')
+  console.log('=== 开始回归分析 ===')
+  console.log('有效数据点数量:', validDataPoints.value.length)
+  console.log('数据点示例:', validDataPoints.value.slice(0, 3))
+
+  if (validDataPoints.value.length < 3) {
+    ElMessage.warning('至少需要3个有效数据点才能进行回归分析')
     return
   }
 
   loading.value = true
 
   try {
+    // 清洗数据，确保格式正确，过滤无效值
+    const cleanData = validDataPoints.value
+      .filter(p => {
+        const xValid = p.x !== null && p.x !== undefined && !isNaN(Number(p.x))
+        const yValid = p.y !== null && p.y !== undefined && !isNaN(Number(p.y))
+        if (!xValid || !yValid) {
+          console.warn('过滤无效数据点:', p)
+        }
+        return xValid && yValid
+      })
+      .map(p => ({
+        x: Number(p.x),
+        y: Number(p.y)
+      }))
+
+    console.log('清洗后的数据:', cleanData)
+    console.log('清洗后数量:', cleanData.length)
+
+    if (cleanData.length < 2) {
+      ElMessage.warning(`有效数据点不足：原始${validDataPoints.value.length}个，清洗后${cleanData.length}个，至少需要2个`)
+      return
+    }
+
     // 准备数据
     const requestData = {
-      data: validDataPoints.value.map(p => ({ x: p.x, y: p.y }))
+      data: cleanData
     }
+
+    console.log('发送回归分析请求:', requestData)
 
     // 执行回归分析
     const result = await performLinearRegression(requestData)
     regressionResult.value = result
+
+    console.log('回归分析成功:', result)
 
     // 根据拟合质量显示提示
     const quality = result.quality_assessment.fit_quality
@@ -244,9 +282,56 @@ const handleStartAnalysis = async () => {
       })
     }, 100)
   } catch (error: any) {
-    ElMessage.error(error.message || '回归分析失败')
+    console.error('=== 📊 回归分析失败 ===')
+    // 1. 提取后端返回的详细错误信息
+    const responseData = error.response?.data
+    const status = error.response?.status
+
+    // 2. 默认错误消息
+    let errorMsg = '回归分析失败'
+
+    // 3. 针对性场景处理
+    if (status === 400 && responseData) {
+      // 场景 A: X轴数据全部相同（无统计学意义）
+      if (responseData.error === 'No variance in X') {
+        const xValue = responseData.x_value
+        const xLabel = analysisData.value?.metadata?.x_label || 'X轴'
+        const xUnit = analysisData.value?.metadata?.x_unit || ''
+        errorMsg = `无法进行回归分析：${xLabel}数据全部相同（当前值: ${xValue} ${xUnit}）。请在筛选条件中选择具有不同数值的样本。`
+      }
+      // 场景 B: 数据量太少（回归分析通常至少需要3个点）
+      else if (responseData.error === 'Insufficient data') {
+        errorMsg = '样本数据量太少（至少需要3个有效点），请放宽筛选条件以获取更多数据。'
+      }
+      // 场景 C: 字段名错误或缺失（对应你之前的数据库变更）
+      else if (responseData.error === 'Missing required fields') {
+        errorMsg = `请求参数缺失: ${responseData.missing_fields?.join(', ')}，请检查页面配置。`
+      }
+      else {
+        errorMsg = responseData.message || responseData.error || errorMsg
+      }
+    } else if (status === 401) {
+      errorMsg = '登录已失效，请重新登录'
+    } else if (error.message === 'Network Error') {
+      errorMsg = '网络连接失败，请检查后端服务是否正常'
+    } else {
+      errorMsg = error.message || '系统繁忙，请稍后再试'
+    }
+
+    // 4. UI 提示反馈
+    console.error('最终捕获错误:', errorMsg)
+    ElMessage({
+      message: errorMsg,
+      type: 'error',
+      duration: 5000, // 增加显示时长，方便用户阅读较长的技术提示
+      showClose: true
+    })
+
+    // 5. 重置分析结果，防止界面显示旧数据
     regressionResult.value = null
+
   } finally {
+    // 无论成功失败，都关闭加载状态
     loading.value = false
   }
 }

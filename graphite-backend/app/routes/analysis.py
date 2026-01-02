@@ -16,29 +16,34 @@ from scipy import stats
 analysis_bp = Blueprint('analysis', __name__)
 
 # 字段元数据（中文名称和单位）
+# ✅ 2025-12-31 修正：根据数据库实际字段和用户反馈修正所有字段映射
 FIELD_METADATA = {
-    # 碳化参数 - ✅ 修正为数据库实际字段名
+    # 碳化参数
     'carbon_max_temp': {'label': '碳化最高温度', 'unit': '℃'},
     'carbon_total_time': {'label': '碳化总时长', 'unit': 'min'},
-    'carbon_yield_rate': {'label': '碳化收率', 'unit': '%'},
+    'carbon_yield_rate': {'label': '碳化成碳率', 'unit': '%'},  # ✅ 修正：从"碳化收率"改为"碳化成碳率"
     
-    # 石墨化参数 - ✅ 修正为数据库实际字段名
+    # 石墨化参数
     'graphite_max_temp': {'label': '石墨化最高温度', 'unit': '℃'},
     'graphite_total_time': {'label': '石墨化总时长', 'unit': 'min'},
     'graphite_yield_rate': {'label': '石墨化收率', 'unit': '%'},
+    'inner_foaming_thickness': {'label': '卷内发泡厚度', 'unit': 'μm'},
+    'outer_foaming_thickness': {'label': '卷外发泡厚度', 'unit': 'μm'},
+    'shrinkage_ratio': {'label': '收缩比', 'unit': '%'},  # ✅ 修正：从成品参数移至石墨化参数
     
-    # 成品参数 - ✅ 只保留数据库存在的字段
+    # 成品参数
     'thermal_conductivity': {'label': '导热系数', 'unit': 'W/m·K'},
     'avg_density': {'label': '平均密度', 'unit': 'g/cm³'},
     'avg_thickness': {'label': '平均厚度', 'unit': 'μm'},
-    'shrinkage_ratio': {'label': '收缩比', 'unit': '%'},
-    'cohesion': {'label': '内聚力', 'unit': 'MPa'},
-    'peel_strength': {'label': '剥离强度', 'unit': 'N/cm'},
+    'specific_heat': {'label': '比热', 'unit': 'J/g·K'},  # ✅ 新增：补充缺失字段
+    'cohesion': {'label': '内聚力', 'unit': 'gf'},  # ✅ 修正：从 MPa 改为 gf
+    'peel_strength': {'label': '剥离力', 'unit': 'gf'},  # ✅ 修正：从"剥离强度 (N/cm)"改为"剥离力 (gf)"
+    'bond_strength': {'label': '结合力', 'unit': 'gf'},  # ✅ 新增：补充缺失字段
     
     # PI膜参数
     'pi_film_thickness': {'label': 'PI膜厚度', 'unit': 'μm'},
     
-    # ✅ 新增：石墨型号（用于筛选分析）
+    # 基本参数
     'graphite_model': {'label': '石墨型号', 'unit': ''}
 }
 
@@ -80,7 +85,7 @@ def get_analysis_data():
         
         print("✅ [DEBUG] 字段验证通过")
         
-        # 3. 构建基础 SQL（✅ 修复：改为 submitted, completed）
+        # 3. 构建基础 SQL
         query = f"""
             SELECT 
                 experiment_code,
@@ -94,14 +99,14 @@ def get_analysis_data():
         
         print(f"📊 [DEBUG] 基础SQL构建完成")
         
-        # 4. 动态添加筛选条件 - ✅ 核心修复：检查 None 和空字符串
+        # 4. 动态添加筛选条件
         filters = []
         params = {}
         
         # 日期筛选
         date_start = request.args.get('date_start')
         print(f"📊 [DEBUG] date_start 原始值: {repr(date_start)}")
-        if date_start and date_start.strip():  # 确保不是 None 且不是空字符串
+        if date_start and date_start.strip():
             filters.append("experiment_date >= :date_start")
             params['date_start'] = date_start
             print(f"✅ [DEBUG] 添加 date_start 筛选: {date_start}")
@@ -117,7 +122,6 @@ def get_analysis_data():
         pi_film_model = request.args.get('pi_film_model')
         print(f"📊 [DEBUG] pi_film_model 原始值: {repr(pi_film_model)}")
         if pi_film_model:
-            # 过滤掉空项
             models = [m.strip() for m in pi_film_model.split(',') if m.strip()]
             print(f"📊 [DEBUG] 解析后的 models: {models}")
             if models:
@@ -127,7 +131,7 @@ def get_analysis_data():
                     params[f'model_{i}'] = model
                 print(f"✅ [DEBUG] 添加 pi_film_model 筛选: {models}")
         
-        # ✅ 石墨型号筛选（替代烧制地点）
+        # 石墨型号筛选
         graphite_model = request.args.get('graphite_model')
         print(f"📊 [DEBUG] graphite_model 原始值: {repr(graphite_model)}")
         if graphite_model:
@@ -170,9 +174,9 @@ def get_analysis_data():
             print("=" * 60)
             import traceback
             traceback.print_exc()
-            raise  # 重新抛出异常
+            raise
         
-        # 6. 后续数据清洗逻辑
+        # 6. 数据清洗
         exclude_zero = request.args.get('exclude_zero', 'true').lower() == 'true'
         enable_outlier = request.args.get('enable_outlier_detection', 'true').lower() == 'true'
         outlier_method = request.args.get('outlier_method', 'iqr')
@@ -209,7 +213,6 @@ def get_analysis_data():
         }), 200
     
     except Exception as e:
-        # ===== 完整的错误处理 =====
         import traceback
         print("=" * 60)
         print("❌ [DEBUG] 数据分析查询失败")
@@ -279,7 +282,6 @@ def linear_regression():
         y_values = np.array([p['y'] for p in valid_points], dtype=float)
         
         # 3. 边缘情况检查
-        # 检查X值是否有变化
         if np.all(x_values == x_values[0]):
             return jsonify({
                 'error': 'No variance in X',
@@ -287,7 +289,6 @@ def linear_regression():
                 'x_value': float(x_values[0])
             }), 400
         
-        # 检查Y值是否有变化
         if np.all(y_values == y_values[0]):
             return jsonify({
                 'error': 'No variance in Y',
@@ -403,26 +404,34 @@ def get_field_options():
         'basic': '基本参数'
     }
     
-    # 字段分类
+    # ✅ 字段分类修正（2025-12-31）
     field_categories = {
+        # 碳化参数
         'carbon_max_temp': 'carbonization',
         'carbon_total_time': 'carbonization',
         'carbon_yield_rate': 'carbonization',
         
+        # 石墨化参数
         'graphite_max_temp': 'graphitization',
         'graphite_total_time': 'graphitization',
         'graphite_yield_rate': 'graphitization',
+        'inner_foaming_thickness': 'graphitization',
+        'outer_foaming_thickness': 'graphitization',
+        'shrinkage_ratio': 'graphitization',  # ✅ 修正：从product移至graphitization
         
+        # 成品参数
         'thermal_conductivity': 'product',
         'avg_density': 'product',
         'avg_thickness': 'product',
-        'shrinkage_ratio': 'product',
+        'specific_heat': 'product',  # ✅ 新增
         'cohesion': 'product',
         'peel_strength': 'product',
+        'bond_strength': 'product',  # ✅ 新增
         
+        # PI膜参数
         'pi_film_thickness': 'pi_film',
         
-        # ✅ 新增：石墨型号归类到基本参数
+        # 基本参数
         'graphite_model': 'basic'
     }
     

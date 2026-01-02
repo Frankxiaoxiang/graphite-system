@@ -617,6 +617,7 @@ def get_experiments():
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('size', 20, type=int)  # 前端使用 size
         status = request.args.get('status')
+        search = request.args.get('search', type=str)  # 🔧 新增
         customer_name = request.args.get('customer_name')
         experiment_code = request.args.get('experiment_code')
         date_from = request.args.get('date_from')
@@ -660,6 +661,15 @@ def get_experiments():
             query = query.filter(Experiment.experiment_code.like(f'%{experiment_code}%'))
             print(f"   - 应用实验编码搜索: {experiment_code}")
         
+        # 🔧 新增：通用搜索
+        if search:
+            search_filter = db.or_(
+                Experiment.experiment_code.like(f'%{search}%'),
+                ExperimentBasic.customer_name.like(f'%{search}%')
+            )
+            query = query.filter(search_filter)
+            print(f"   - 应用搜索过滤: '{search}'")
+
         if date_from:
             query = query.filter(ExperimentBasic.experiment_date >= date_from)
             print(f"   - 应用开始日期: {date_from}")
