@@ -187,7 +187,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, RefreshLeft, QuestionFilled } from '@element-plus/icons-vue'
 import { getFieldOptions } from '@/api/analysis'
-import { dropdownApi } from '@/api/dropdown'  // ✅ 添加 dropdown API 导入
+import { dropdownApi } from '@/api/dropdown'
 import type { FieldOption } from '@/types/analysis'
 
 // Props
@@ -224,6 +224,8 @@ const emit = defineEmits<{
   (e: 'update:sinteringLocations', value: string[]): void
   (e: 'update:excludeZero', value: boolean): void
   (e: 'update:enableOutlierDetection', value: boolean): void
+  (e: 'update:x-axis', config: { field: string; label: string; unit: string }): void  // ✅ 新增
+  (e: 'update:y-axis', config: { field: string; label: string; unit: string }): void  // ✅ 新增
   (e: 'search'): void
 }>()
 
@@ -244,7 +246,7 @@ const loading = ref(false)
 // 字段列表
 const fields = ref<FieldOption[]>([])
 
-// ✅ 新增：PI膜型号选项（动态加载）
+// PI膜型号选项（动态加载）
 const piFilmModelOptions = ref<Array<{ value: string; label: string }>>([])
 const piFilmModelLoading = ref(false)
 
@@ -274,7 +276,28 @@ const groupedFields = computed(() => {
   return Object.values(groups)
 })
 
-// ✅ 新增：加载PI膜型号选项
+// ✅ 新增：根据字段值查找字段配置
+function findFieldConfig(fieldValue: string): { field: string; label: string; unit: string } {
+  const field = fields.value.find(f => f.value === fieldValue)
+
+  if (field) {
+    return {
+      field: field.value,
+      label: field.label,
+      unit: field.unit
+    }
+  }
+
+  // 如果找不到字段，返回默认配置
+  console.warn(`⚠️ 未找到字段配置: ${fieldValue}`)
+  return {
+    field: fieldValue,
+    label: fieldValue,
+    unit: ''
+  }
+}
+
+// 加载PI膜型号选项
 async function loadPiFilmModelOptions() {
   try {
     piFilmModelLoading.value = true
@@ -302,20 +325,37 @@ onMounted(async () => {
     const response = await getFieldOptions()
     fields.value = response.fields
 
-    // ✅ 加载PI膜型号选项
+    // 加载PI膜型号选项
     await loadPiFilmModelOptions()
   } catch (error) {
     ElMessage.error('加载选项列表失败')
   }
 })
 
+// ========================================
 // 事件处理
+// ========================================
+
+// ✅ 修改：X轴变化处理
 const handleXFieldChange = (value: string) => {
   emit('update:xField', value)
+
+  // ✅ 同时emit完整的轴配置
+  const config = findFieldConfig(value)
+  emit('update:x-axis', config)
+
+  console.log('🎯 X轴配置更新:', config)
 }
 
+// ✅ 修改：Y轴变化处理
 const handleYFieldChange = (value: string) => {
   emit('update:yField', value)
+
+  // ✅ 同时emit完整的轴配置
+  const config = findFieldConfig(value)
+  emit('update:y-axis', config)
+
+  console.log('🎯 Y轴配置更新:', config)
 }
 
 const handleDateRangeChange = (value: [string, string] | null) => {
@@ -373,6 +413,10 @@ const handleReset = () => {
   emit('update:sinteringLocations', [])
   emit('update:excludeZero', true)
   emit('update:enableOutlierDetection', true)
+
+  // ✅ 重置时也要清空轴配置
+  emit('update:x-axis', { field: '', label: '', unit: '' })
+  emit('update:y-axis', { field: '', label: '', unit: '' })
 }
 </script>
 

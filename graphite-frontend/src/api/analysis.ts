@@ -35,6 +35,7 @@ export function getAnalysisData(params: AnalysisQueryParams) {
       date_start: params.date_start,
       date_end: params.date_end,
       pi_film_model: params.pi_film_model,
+      graphite_model: params.graphite_model,        // ✅ 添加这一行！
       sintering_location: params.sintering_location,
       exclude_zero: params.exclude_zero !== false ? 'true' : 'false',
       enable_outlier_detection: params.enable_outlier_detection !== false ? 'true' : 'false',
